@@ -9,20 +9,17 @@ resource "aws_internet_gateway" "igw" { vpc_id = aws_vpc.main.id }
 resource "aws_subnet" "public" {
   count                   = 2
   vpc_id                  = aws_vpc.main.id
-  cidr_block              = cidrsubnet(aws_vpc.main.cidr_block, 8, count.index)
+  cidr_block              = cidrsubnet(aws_vpc.main.cidr_block, 2, count.index)
   availability_zone       = data.aws_availability_zones.available.names[count.index]
   map_public_ip_on_launch = true
-  #todo: check if ita assiging a public ip to the instance
 }
 
-# RDS needs subnets in two AZs. No internet route, no NAT.
 resource "aws_subnet" "private" {
   count             = 2
   vpc_id            = aws_vpc.main.id
-  cidr_block        = cidrsubnet(aws_vpc.main.cidr_block, 8, count.index + 10)
+  cidr_block        = cidrsubnet(aws_vpc.main.cidr_block, 2, count.index + 2)
   availability_zone = data.aws_availability_zones.available.names[count.index]
 }
-
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main.id
   route {

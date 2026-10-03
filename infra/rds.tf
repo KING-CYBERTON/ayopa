@@ -18,7 +18,7 @@ resource "aws_db_instance" "main" {
   db_subnet_group_name      = aws_db_subnet_group.main.name
   vpc_security_group_ids    = [aws_security_group.db.id]
   publicly_accessible       = false
-  backup_retention_period   = 7
+  backup_retention_period   = 1
   deletion_protection       = !var.allow_destroy
   skip_final_snapshot       = var.allow_destroy
   final_snapshot_identifier = var.allow_destroy ? null : "${var.project}-final"

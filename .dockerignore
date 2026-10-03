@@ -1,0 +1,11 @@
+.git
+.github
+infra
+docs
+todo
+Readme.md
+.env
+.env.*
+*.tfstate*
+.terraform
+docker-compose.dev.yml
