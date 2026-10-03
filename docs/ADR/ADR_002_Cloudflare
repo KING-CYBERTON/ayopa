@@ -22,11 +22,11 @@ The deciding factors are **cost** (the project runs on a tight budget) and
   than this project needs. Optional proxy, DDoS protection, and caching
   can be enabled later.
 - **Pros:** Mature `caddy-dns/cloudflare` plugin, scoped API tokens
-  (DNS edit on one zone), simple dashboard.
+  (DNS edit on one zone)(ip restricted for security), simple dashboard.
 - **Cons:** Requires changing nameservers at the registrar. DNS lives outside
   AWS, so it is not managed by the same IAM and Terraform workflow unless
   the Cloudflare Terraform provider is added. The API token must be stored
-  on the server.
+  on the server, manually updating ip filtering and dns record when elastic ip changes.
 
 ### Option 2: AWS Route 53
 - **Cost:** About $0.50 per hosted zone per month plus per-query fees, and

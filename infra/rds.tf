@@ -27,5 +27,5 @@ resource "aws_db_instance" "main" {
 resource "aws_ssm_parameter" "database_url" {
   name  = "/${var.project}/database_url"
   type  = "SecureString"
-  value = "postgres://ayopa_admin:${random_password.db.result}@${aws_db_instance.main.address}:5432/ayopa?sslmode=require"
+  value = "postgres://ayopa_admin:${random_password.db.result}@${aws_db_instance.main.address}:5432/${aws_db_instance.main.db_name}?sslmode=require"
 }

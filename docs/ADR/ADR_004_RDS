@@ -62,8 +62,8 @@ instance class that runs the workload, with:
   TCP 5432 **only from the app server's security group**.
 - **Encryption and transport:** encryption at rest enabled, and the app
   connects over TLS.
-- **Backups:** automated backups with point-in-time recovery, 7-day
-  retention, and a final snapshot on deletion.
+- **Backups:** automated backups with point-in-time recovery, 1-day
+  retention(free-plan limit), and a final snapshot on deletion.
 - **Access:** the application connects as a least-privilege database
   user, not the master user. The master credentials are not used by
   the app.

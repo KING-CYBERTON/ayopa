@@ -1,13 +1,16 @@
 #!/bin/bash
 set -euo pipefail
 cd /opt/ayopa
+
 TAG="$1"
 REGION=eu-central-1
 BASE_DOMAIN=ayopa.co.ke
 REGISTRY="$(aws sts get-caller-identity --query Account --output text).dkr.ecr.${REGION}.amazonaws.com"
 
-get() { aws ssm get-parameter --name "/ayopa/$1" --with-decryption \
-          --query Parameter.Value --output text --region "$REGION"; }
+get() {
+  aws ssm get-parameter --name "/ayopa/$1" --with-decryption \
+    --query Parameter.Value --output text --region "$REGION"
+}
 
 umask 077
 cat > .env <<EOF
