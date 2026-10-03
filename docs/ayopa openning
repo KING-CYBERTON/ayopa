@@ -1,0 +1,18 @@
+W=59
+line() {
+  local l=$(( (W - ${#1}) / 2 ))
+  local r=$(( W - ${#1} - l ))
+  printf '*%*s%s%*s*\n' "$l" '' "$1" "$r" ''
+}
+{
+  printf '%*s\n' 61 '' | tr ' ' '*'
+  line ''
+  line 'AYOPA LTD'
+  line 'SUPPORT: support@ayopa.co.ke'
+  line 'SUBDOMAIN SERVER'
+  line 'MARKETPLACE AUTOMATION'
+  line ''
+  printf '%*s\n' 61 '' | tr ' ' '*'
+} | sudo tee /etc/motd.d/30-banner > /dev/null
+
+

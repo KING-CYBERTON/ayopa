@@ -1,0 +1,129 @@
+# ADR-0004: Use Amazon RDS for PostgreSQL instead of self-managed Postgres
+
+- **Status:** Accepted
+- **Date:** 2026-10-02
+- **Deciders:** Project author
+
+## Context
+The platform stores tenants, users, and tenant-scoped data in PostgreSQL
+(shared schema with `tenant_id`, see planned ADR on tenant isolation). The
+application server is a single small EC2 instance (eu-central-1) that also
+runs Caddy and the Go app.
+
+Database data must survive instance restarts, replacement, and
+termination. The deciding factors are **cost**, **scale**, and
+**operational risk** (backups, recovery, patching).
+
+## Options considered
+
+### Option 1: Postgres on the EC2 instance, on a separate EBS data volume
+- **Cost:** Lowest. A small EBS volume plus S3 backup storage.
+- **Scale:** Vertical only. The database shares CPU and memory with Caddy
+  and the app on a small instance. No failover.
+- **Pros:** Cheapest option, no network hop, simple to bind to localhost,
+  and good learning value in running a database.
+- **Cons:** Backups, point-in-time recovery (WAL archiving), patching,
+  tuning, and restore testing are all our responsibility. Competes for
+  limited RAM with the other services. Instance failure means downtime
+  until rebuilt and the volume reattached.
+
+### Option 2: Amazon RDS for PostgreSQL (single-AZ)
+- **Cost:** Higher. An always-on DB instance plus storage, billed
+  separately from the app server, and possibly not covered by the
+  account's free-tier credits.
+- **Scale:** Dedicated resources, easy storage and instance resizing,
+  read replicas available, Multi-AZ available when needed.
+- **Pros:** Automated backups with point-in-time recovery, managed
+  patching, built-in metrics in CloudWatch, encryption at rest, and the
+  app server no longer shares memory with the database.
+- **Cons:** Recurring cost from day one, less low-level control, and
+  extra networking setup (DB subnet group, security groups).
+
+### Option 3: Amazon RDS Multi-AZ
+- **Cost:** Roughly double Option 2.
+- **Scale/availability:** Automatic failover to a standby in another AZ.
+- **Pros:** Highest availability.
+- **Cons:** Cost is not justified for a capstone-scale workload with no
+  availability SLA.
+
+### Option 4: SQLite on the instance
+- **Cost:** None.
+- **Pros:** Simplest possible setup.
+- **Cons:** Ties the data to one server and blocks horizontal scaling of
+  the app tier. Weaker fit for the multi-tenant and concurrency story
+  this project wants to demonstrate.
+
+## Decision
+Use **Amazon RDS for PostgreSQL, single-AZ**, on the smallest burstable
+instance class that runs the workload, with:
+
+- **Network:** deployed in private subnets via a DB subnet group, with
+  **public accessibility disabled**. The RDS security group allows
+  TCP 5432 **only from the app server's security group**.
+- **Encryption and transport:** encryption at rest enabled, and the app
+  connects over TLS.
+- **Backups:** automated backups with point-in-time recovery, 7-day
+  retention, and a final snapshot on deletion.
+- **Access:** the application connects as a least-privilege database
+  user, not the master user. The master credentials are not used by
+  the app.
+- **Secrets:** database credentials are stored outside the repo (see the
+  secrets management ADR) and injected through environment variables.
+- **Provisioning:** defined in Terraform alongside the EC2 instance.
+
+Managed backups and recovery remove the largest operational risk of the
+self-managed option, and moving the database off the app server frees
+memory on a small instance. Single-AZ keeps cost down, and the loss of
+automatic failover is an accepted trade-off.
+
+## Consequences
+
+### Positive
+- Automated backups and point-in-time recovery without building them.
+- The app server and database can be sized, restarted, and replaced
+  independently. Terminating the EC2 instance does not touch the data.
+- Free RAM on the app instance for Caddy and Go.
+- The architecture maps directly to what is expected in production.
+- The database is unreachable from the internet by design.
+
+### Negative / trade-offs accepted
+- **Cost:** a recurring charge that a self-managed database would avoid.
+  Free-tier credits may not fully cover it.
+- **Single-AZ:** an AZ outage or instance failure means downtime until
+  AWS recovers or a restore is performed.
+- **Less control:** limited access to the host and some Postgres settings.
+- **Networking:** a DB subnet group requires subnets in at least two
+  Availability Zones, so the VPC design must include them.
+
+### Risks and mitigations
+- **Unexpected bills:** set an AWS Budget alert, pick the smallest
+  instance class, and stop or delete the database when idle in
+  development. Note that stopped RDS instances are restarted
+  automatically by AWS after a limited period.
+- **Credential leakage:** least-privilege app user, secrets kept out of
+  Git and logs, and rotation documented.
+- **Data loss on deletion:** deletion protection on, final snapshot
+  required, and a restore test performed once and documented.
+- **Latency between EC2 and RDS:** place both in the same region and
+  AZ where possible. The added hop is acceptable for this workload.
+
+## Revisit when
+- Availability requirements justify the cost of Multi-AZ.
+- Read load justifies read replicas.
+- Cost pressure after free-tier credits expire makes a self-managed
+  database or a cheaper provider attractive. Migration is a dump and
+  restore plus a connection string change.
+- Row-level security or other Postgres features require settings RDS
+  does not allow.
+
+## Recovery targets
+- **RPO (acceptable data loss):** up to 5 minutes, via point-in-time
+  recovery.
+- **RTO (time to restore service):** under 1 hour, via restore from
+  snapshot or point in time, then update the connection string.
+
+## References
+- Amazon RDS for PostgreSQL: https://aws.amazon.com/rds/postgresql/
+- RDS pricing: https://aws.amazon.com/rds/postgresql/pricing/
+- Related: ADR-0003 (EC2 over VPS), planned ADRs on tenant isolation,
+  secrets management, and infrastructure as code

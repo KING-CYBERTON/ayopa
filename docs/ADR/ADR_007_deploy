@@ -1,0 +1,90 @@
+# ADR-0001: Use Caddy as reverse proxy and TLS terminator
+
+- **Status:** Accepted
+- **Date:** 2026-10-01
+- **Deciders:** Project author
+
+## Context
+Every tenant gets a subdomain on registration (`alice.yourapp.com`), so the
+platform needs HTTPS for the apex domain and an unbounded number of
+subdomains. The system runs on a single small AWS EC2 instance under a
+free-tier budget, and the Go application should stay focused on business
+logic rather than certificate management.
+
+Requirements:
+- Wildcard HTTPS (`*.yourapp.com`) with automatic renewal
+- Forward the original `Host` header so the app can resolve the tenant
+- Low operational overhead and low memory footprint
+- No recurring cost for certificates or load balancing
+
+## Options considered
+
+### Option 1: Caddy (with DNS-01 wildcard certificates)
+- **Pros:** Automatic issuance and renewal via Let's Encrypt, a very small
+  config file, HTTPS by default, single static binary, preserves the `Host`
+  header by default.
+- **Cons:** Wildcard certs need a custom build (`xcaddy`) with a DNS provider
+  plugin, and the DNS API token must be stored on the server.
+
+### Option 2: Nginx + Certbot
+- **Pros:** Very widely used and well documented, with fine-grained control.
+- **Cons:** Certbot and Nginx are separate components to configure and keep
+  in sync, renewal needs cron or systemd timers plus reload hooks, and
+  wildcard certs still need a DNS plugin. More moving parts to operate.
+
+### Option 3: AWS Application Load Balancer + ACM
+- **Pros:** Managed, free ACM wildcard certificates, built-in health checks
+  and scaling.
+- **Cons:** The ALB has a baseline hourly charge that conflicts with the
+  budget, and it is more infrastructure than a single-server system needs.
+
+### Option 4: Go application terminates TLS itself (autocert/CertMagic)
+- **Pros:** One fewer component.
+- **Cons:** Couples certificate handling to application code, and the app
+  has to run on privileged ports or use extra capabilities. It also gives up
+  the separation of concerns we want to demonstrate.
+
+## Decision
+Use **Caddy** as the reverse proxy and TLS terminator, built with the
+`caddy-dns/cloudflare` plugin and using the DNS-01 challenge to obtain a
+single wildcard certificate for `yourapp.com` and `*.yourapp.com`. Caddy
+forwards requests to the Go app on `localhost:8080`.
+
+It meets every requirement at zero certificate cost with the least
+configuration and operational effort of the options considered.
+
+## Consequences
+
+### Positive
+- Certificate issuance and renewal are fully automatic.
+- The whole proxy config is a few lines and easy to review.
+- Creating a subdomain at signup is only a database row. No DNS or
+  certificate action is needed per tenant.
+- The Go app stays unaware of TLS.
+
+### Negative / trade-offs accepted
+- Requires building Caddy with `xcaddy` and re-building to update plugins.
+- A Cloudflare API token lives on the server (mitigated below).
+- Single point of failure: one instance, one Caddy process.
+
+### Risks and mitigations
+- **Token leakage:** scope the Cloudflare token to DNS edit on one zone only,
+  store it in an environment file readable only by the Caddy service user.
+- **Caddy downtime:** run under systemd with automatic restart; monitor with
+  an uptime check.
+- **Spoofed Host headers:** the app validates the subdomain and returns 404
+  for unknown tenants.
+
+## Revisit when
+- Traffic or availability needs require multiple servers (consider an ALB
+  with ACM, see the scaling roadmap).
+- We move DNS to Route 53 and want IAM-role-based DNS challenges instead of
+  a stored token.
+- Caddy or the DNS plugin becomes unmaintained.
+
+## References
+- Caddy docs: https://caddyserver.com/docs/
+- Caddy DNS plugin for Cloudflare: https://github.com/caddy-dns/cloudflare
+- Let's Encrypt DNS-01 challenge documentation
+- Related ADRs (planned): wildcard TLS vs on-demand TLS; Cloudflare DNS vs
+  Route 53; single instance vs load balancer

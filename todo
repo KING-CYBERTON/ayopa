@@ -1,0 +1,30 @@
+Yes. You already have three written and a few planned (wildcard vs on-demand TLS, shared schema vs schema-per-tenant, Postgres on the instance vs RDS, single instance vs load balancer, layered Go architecture). These are the ones I'd add, grouped by how much they'll matter to a reviewer.
+
+**High value (write these)**
+
+1. **Session and authentication strategy.** Server-side sessions with host-scoped cookies vs JWTs, and argon2 vs bcrypt for passwords. Subdomains make this a real decision: a cookie scoped to `.yourapp.com` would be shared across every tenant, so this ADR ties directly to your security story.
+2. **Tenant isolation enforcement.** Application-level `tenant_id` filtering vs Postgres row-level security. This extends the shared-schema ADR by covering how you guarantee no query forgets the filter.
+3. **Subdomain policy.** Reserved names, allowed characters, uniqueness, the squatting and abuse risk, and whether subdomains can be changed or released later.
+4. **Secrets management.** An env file on the server vs AWS SSM Parameter Store. SSM's standard tier is free and avoids secrets sitting in Terraform state or CI logs, so it's worth considering. It also affects where the Cloudflare token lives.
+5. **Infrastructure as code.** Terraform vs CloudFormation vs manual setup, including where state is stored.
+6. **CI/CD and deployment method.** GitHub Actions deploying over SSH or SSM, and Docker containers vs a plain binary under systemd. Both choices are cheap on a single instance but have real trade-offs.
+
+**Medium value**
+
+7. **Database choice and migrations.** Postgres vs SQLite (SQLite is simpler and cheaper, but it limits you if you scale to several app servers), plus golang-migrate vs goose.
+8. **Backup and recovery.** Backup frequency, S3 storage, retention, and a stated recovery time and data-loss target, even if modest.
+9. **Rate limiting location.** In Caddy, in the Go app, or both. This matters most for signup and login.
+10. **HTTP framework.** Go standard library (`net/http` with the newer routing) vs chi or gin. Short, but shows you chose deliberately.
+11. **Observability.** Structured logging with `slog`, which metrics to collect, and CloudWatch vs self-hosted tooling given the free tier.
+
+**Optional**
+
+12. **Custom domains deferred.** A short "not now" ADR explaining you considered letting tenants bring their own domain and why you postponed it. Recording rejected or deferred scope shows maturity.
+
+**Order I'd write them in**
+
+Write them as you hit each decision, but if you're doing it up front: wildcard vs on-demand TLS, shared schema, auth and sessions, tenant isolation enforcement, secrets, then infrastructure as code. That sequence follows your build order, and the early ones shape the code you write first.
+
+Don't write all twelve for the sake of volume. Eight to ten sharp ADRs with honest trade-offs will read better than twenty thin ones. If a decision has no real alternative you considered, skip it.
+
+I can draft the next batch for you. I'd suggest wildcard vs on-demand TLS and the shared schema ADR first, since they build most directly on what you have.

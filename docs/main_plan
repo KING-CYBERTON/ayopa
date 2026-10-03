@@ -1,0 +1,168 @@
+# Multi-Tenant Subdomain Platform: Capstone Plan
+
+## 1. Overview
+A small multi-tenant SaaS where each user gets their own subdomain
+(`alice.yourapp.com`) on registration, with isolated data per tenant.
+The goal is to demonstrate sound system design and enterprise-grade
+engineering practice, not maximum feature count.
+
+**Stack:** Go, Caddy, PostgreSQL, AWS EC2 (free tier), Cloudflare DNS,
+Terraform, Docker, GitHub Actions.
+
+## 2. Architecture
+
+```
+Registrar (domain ownership)
+   │ nameservers → Cloudflare
+   ▼
+Cloudflare DNS (free): yourapp.com, *.yourapp.com → EC2 Elastic IP
+   ▼
+EC2 instance
+   Caddy :443 (wildcard TLS via DNS-01) → Go app :8080 → PostgreSQL
+```
+
+**Key idea:** wildcard DNS plus a wildcard certificate means creating a
+subdomain at signup is just a database row. No DNS or AWS API call needed.
+
+## 3. Product idea
+_Pick one and describe it here:_ status page, booking page, mini helpdesk,
+or feedback board. Each tenant manages their own data on their subdomain.
+
+## 4. Core features
+- [ ] Registration with subdomain selection
+- [ ] Subdomain validation, reserved names, unique constraint
+- [ ] Host-header tenant resolution middleware
+- [ ] Tenant-scoped data (every query filtered by `tenant_id`)
+- [ ] Authentication (argon2/bcrypt), sessions scoped to exact host
+- [ ] Tenant dashboard
+
+## 5. Code structure
+- Layers: handlers → services → repositories (interfaces for mocking)
+- Tenant context injected by middleware
+- DB migrations (golang-migrate or goose)
+- Config via environment variables
+- Structured logging (`log/slog`), request IDs
+- Graceful shutdown, `/healthz` endpoint
+
+## 6. Testing
+- [ ] Unit tests for services
+- [ ] Integration tests against real Postgres
+- [ ] **Tenant isolation test:** tenant A cannot read or write tenant B's data
+- [ ] Subdomain validation tests (reserved names, bad characters, length)
+
+## 7. Security checklist
+- [ ] Shared schema with `tenant_id` (ADR explains why)
+- [ ] Reserved subdomain list
+- [ ] Unique constraint with race-safe insert
+- [ ] Password hashing (argon2/bcrypt)
+- [ ] CSRF protection
+- [ ] Rate limiting on signup and login
+- [ ] Host-scoped cookies (no `Domain=.yourapp.com`)
+- [ ] Least-privilege Cloudflare API token (DNS edit, one zone)
+- [ ] Locked-down EC2 security group (80/443 public, SSH restricted)
+- [ ] Threat model written up (squatting, cross-tenant access,
+      cookie tossing, abuse of signup)
+
+## 8. Infrastructure and delivery
+- [ ] Terraform: EC2, security group, Elastic IP
+- [ ] Docker for the app; Postgres on the same instance (not RDS)
+- [ ] Caddy built with `caddy-dns/cloudflare` plugin
+- [ ] GitHub Actions: lint → test → build → deploy
+- [ ] Automated Postgres backups to S3
+- [ ] systemd units so services restart on reboot
+
+## 9. Observability
+- [ ] Structured logs with request IDs
+- [ ] Basic metrics
+- [ ] CloudWatch alarms or uptime checks (within free tier)
+
+## 10. Cost notes
+- Cloudflare DNS: free (Route 53 hosted zone is ~$0.50/month)
+- Single EC2 + Elastic IP; avoid unattached IPs and RDS
+- Check current AWS free-tier terms on your account's billing page
+- Document what production would cost vs. this budget version
+
+## 11. Scaling roadmap (documented, not built)
+| Trigger | Change |
+|---|---|
+| One server overloaded or downtime unacceptable | Add ALB + multiple instances |
+| Need managed DB, backups, failover | Move to RDS |
+| Multiple app servers | Sessions in Redis or signed cookies |
+| Need ALB/CloudFront integration | Route 53 alias records, ACM wildcard cert |
+| Want to avoid stored DNS token | Route 53 + IAM role for Caddy |
+
+## 12. Architecture Decision Records
+Stored in `docs/adr/`. Planned ADRs:
+1. Use Caddy as reverse proxy and TLS terminator
+2. Wildcard TLS (DNS-01) vs. on-demand TLS
+3. Shared schema with `tenant_id` vs. schema/database per tenant
+4. Cloudflare DNS vs. Route 53
+5. Single EC2 instance vs. load balancer
+6. Postgres on the instance vs. RDS
+7. Go layered architecture with repository interfaces
+
+### ADR template
+```markdown
+# ADR-000N: Title
+
+- **Status:** Proposed | Accepted | Superseded by ADR-XXXX
+- **Date:** YYYY-MM-DD
+
+## Context
+What problem or constraint forced a decision?
+
+## Options considered
+1. Option A: pros / cons
+2. Option B: pros / cons
+
+## Decision
+What we chose and why.
+
+## Consequences
+Trade-offs accepted, risks, and what would make us revisit this.
+```
+
+### Example: ADR-0003
+```markdown
+# ADR-0003: Shared schema with tenant_id
+
+- **Status:** Accepted
+- **Date:** 2026-10-01
+
+## Context
+Each tenant needs isolated data. We run on a single small instance
+with a tight cost budget.
+
+## Options considered
+1. Shared schema + tenant_id: cheap, simple migrations, isolation
+   depends on application correctness.
+2. Schema per tenant: stronger isolation, migrations run N times.
+3. Database per tenant: strongest isolation, highest cost/complexity.
+
+## Decision
+Shared schema with a tenant_id column on every tenant-owned table,
+enforced in the repository layer and verified by isolation tests.
+
+## Consequences
+A missing tenant filter would leak data, so tests and code review
+must guard it. Revisit (consider Postgres row-level security) if
+tenant count or compliance needs grow.
+```
+
+## 13. Documentation deliverables
+- [ ] Architecture diagram (DNS → Caddy → Go → DB)
+- [ ] ADRs (above)
+- [ ] Threat model
+- [ ] Scaling roadmap and cost analysis
+- [ ] README with setup, run, test, and deploy instructions
+
+## 14. Build order
+1. Core app: signup, subdomain, routing, tenant-scoped data, tests
+2. Manual deploy on EC2 + Caddy + Cloudflare
+3. Terraform and CI/CD
+4. Observability and backups
+5. Docs and ADRs, written as you go
+
+## 15. What to avoid
+Kubernetes, microservices, and unneeded AWS services. Choose the simple
+option deliberately and justify it in an ADR.

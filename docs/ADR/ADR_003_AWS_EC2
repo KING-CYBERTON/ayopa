@@ -1,0 +1,94 @@
+# ADR-0003: Host on AWS EC2 instead of a generic VPS
+
+- **Status:** Accepted
+- **Date:** 2026-10-01
+- **Deciders:** Project author
+
+## Context
+The application (Go, Caddy, PostgreSQL) needs a Linux server with a static
+public IP. The project is a capstone intended to demonstrate cloud and
+system-design skills while staying inside a minimal budget.
+
+The deciding factors are **cost** (now and after any free credits end)
+and **scale** (how easily the platform can grow beyond one server).
+
+## Options considered
+
+### Option 1: AWS EC2 (small instance, Elastic IP)
+- **Cost:** New AWS accounts currently receive a credit-based free plan
+  instead of the older 12 months of free hours, so early cost is near zero.
+  After credits expire, a small instance plus public IPv4 and storage
+  usually costs more per month than a comparable VPS. Data transfer out
+  is metered.
+- **Scale:** Clear upgrade path: larger instance types, Application Load
+  Balancer, auto scaling groups, RDS, S3, CloudWatch, Route 53, with
+  everything in one account.
+- **Pros:** Industry-standard platform, IAM, VPC, and security groups
+  demonstrate enterprise skills, fully scriptable with Terraform, and
+  the scaling roadmap in this project maps directly onto real AWS
+  services.
+- **Cons:** More complex, pricing is harder to predict, and costs can
+  surprise (idle IPv4 addresses, EBS volumes, data transfer).
+
+### Option 2: Generic VPS (e.g. Hetzner, DigitalOcean, Vultr)
+- **Cost:** Fixed, predictable monthly price, usually cheaper than EC2
+  for steady small workloads, with generous bandwidth included.
+- **Scale:** Vertical resizing is easy. Load balancers and managed
+  databases exist but are less extensive, and horizontal scaling means
+  more manual work.
+- **Pros:** Simple, cheap, predictable, fast to set up.
+- **Cons:** Smaller ecosystem, so less opportunity to demonstrate IAM,
+  VPC design, and managed-service integration. Terraform providers exist
+  but the surrounding tooling is thinner.
+
+### Option 3: AWS Lightsail
+- **Cost:** Fixed monthly bundle price, in between EC2 and a VPS.
+- **Scale:** Limited. It can connect to other AWS services but is not
+  the standard path for scaling out.
+- **Pros:** Predictable pricing inside AWS.
+- **Cons:** Shows less of the IAM and VPC design work this capstone is
+  meant to demonstrate.
+
+## Decision
+Use **AWS EC2** with an Elastic IP, running Caddy, the Go app, and
+PostgreSQL on a single small instance, provisioned with Terraform.
+
+For a capstone, the credit-based plan makes initial cost negligible,
+and EC2 demonstrates infrastructure-as-code, networking, and IAM skills
+that a plain VPS does not. It also gives the documented scaling roadmap
+(ALB, RDS, auto scaling) a real platform to map onto.
+
+## Consequences
+
+### Positive
+- Near-zero cost during development while credits last.
+- Directly relevant to enterprise AWS practice.
+- Every scaling step in the roadmap is an incremental change rather than
+  a migration.
+
+### Negative / trade-offs accepted
+- After credits end, steady-state cost is likely higher than a VPS for the
+  same capacity.
+- More configuration surface (VPC, security groups, IAM) than a VPS.
+- Easy to incur unexpected charges without monitoring.
+
+### Risks and mitigations
+- **Surprise bills:** set an AWS Budget with alerts, avoid unattached
+  Elastic IPs and unneeded services (including RDS and NAT gateways),
+  and review billing weekly.
+- **Single instance failure:** automated database backups to S3, Terraform
+  to rebuild quickly, documented recovery steps.
+- **Credit expiry:** record the expiry date and decide in advance whether to
+  keep the instance or migrate.
+
+## Revisit when
+- Credits expire and monthly cost matters more than AWS integration. Compare
+  against a VPS at that point, since migration is straightforward with
+  Docker and Terraform.
+- Load requires multiple instances (move to ALB + auto scaling).
+- The database needs managed backups and failover (move to RDS).
+
+## References
+- AWS Free Tier: https://aws.amazon.com/free/
+- EC2 pricing: https://aws.amazon.com/ec2/pricing/
+- Related: ADR-0001 (Caddy), ADR-0002 (Cloudflare vs Route 53)
