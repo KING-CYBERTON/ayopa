@@ -36,20 +36,46 @@ resource "aws_route_table_association" "public" {
   subnet_id      = aws_subnet.public[count.index].id
   route_table_id = aws_route_table.public.id
 }
-
 resource "aws_security_group" "app" {
   name_prefix = "${var.project}-app-"
   vpc_id      = aws_vpc.main.id
-  ingress { from_port = 80  to_port = 80  protocol = "tcp" cidr_blocks = ["0.0.0.0/0"] }
-  ingress { from_port = 443 to_port = 443 protocol = "tcp" cidr_blocks = ["0.0.0.0/0"] }
-  ingress { from_port = 443 to_port = 443 protocol = "udp" cidr_blocks = ["0.0.0.0/0"] } # HTTP/3
-  egress  { from_port = 0   to_port = 0   protocol = "-1"  cidr_blocks = ["0.0.0.0/0"] }
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # HTTP/3
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "udp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   # No SSH rule: shell access goes through SSM Session Manager.
 }
 
 resource "aws_security_group" "db" {
   name_prefix = "${var.project}-db-"
   vpc_id      = aws_vpc.main.id
+
   ingress {
     from_port       = 5432
     to_port         = 5432

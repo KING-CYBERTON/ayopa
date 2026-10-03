@@ -5,7 +5,11 @@ data "aws_ssm_parameter" "al2023" {
 data "aws_iam_policy_document" "ec2_assume" {
   statement {
     actions = ["sts:AssumeRole"]
-    principals { type = "Service" identifiers = ["ec2.amazonaws.com"] }
+
+    principals {
+      type        = "Service"
+      identifiers = ["ec2.amazonaws.com"]
+    }
   }
 }
 
@@ -49,12 +53,12 @@ resource "aws_iam_instance_profile" "app" {
 }
 
 resource "aws_instance" "app" {
-  ami                    = data.aws_ssm_parameter.al2023.value
-  instance_type          = "t3.micro"
-  subnet_id              = aws_subnet.public[0].id
-  vpc_security_group_ids = [aws_security_group.app.id]
-  iam_instance_profile   = aws_iam_instance_profile.app.name
-  user_data              = file("${path.module}/user_data.sh")
+  ami                         = data.aws_ssm_parameter.al2023.value
+  instance_type               = "t3.micro"
+  subnet_id                   = aws_subnet.public[0].id
+  vpc_security_group_ids      = [aws_security_group.app.id]
+  iam_instance_profile        = aws_iam_instance_profile.app.name
+  user_data                   = file("${path.module}/user_data.sh")
   user_data_replace_on_change = true
 
   metadata_options { http_tokens = "required" } # IMDSv2 only
