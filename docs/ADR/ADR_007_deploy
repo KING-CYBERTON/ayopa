@@ -11,6 +11,8 @@ subdomains. The system runs on a single small AWS EC2 instance under a
 free-tier budget, and the Go application should stay focused on business
 logic rather than certificate management.
 
+To note:
+
 Requirements:
 - Wildcard HTTPS (`*.yourapp.com`) with automatic renewal
 - Forward the original `Host` header so the app can resolve the tenant
