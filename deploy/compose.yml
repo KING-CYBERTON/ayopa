@@ -6,10 +6,16 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       BASE_DOMAIN: ${BASE_DOMAIN}
       ADDR: 0.0.0.0:8080
+      TRUST_PROXY: "true"
+      COOKIE_SECURE: "true"
+
   caddy:
     image: ${REGISTRY}/ayopa-caddy:${TAG}
     restart: unless-stopped
-    ports: ["80:80", "443:443", "443:443/udp"]
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
     environment:
       CF_API_TOKEN: ${CF_API_TOKEN}
       BASE_DOMAIN: ${BASE_DOMAIN}
@@ -18,7 +24,9 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
-    depends_on: [app]
+    depends_on:
+      - app
+
 volumes:
   caddy_data:
   caddy_config:
