@@ -29,18 +29,20 @@ Significant technical decisions are documented as ADRs in
 
 | ADR | Title | Status |
 |-----|-------|--------|
-| [ADR-0001](docs/adr/0001-Caddy.md) | Use Caddy as reverse proxy and TLS terminator | Accepted |
-| [ADR-0002](docs/adr/0002-Cloudflare.md) | Use Cloudflare DNS instead of Route 53 | Accepted |
-| [ADR-0003](docs/adr/0003-AWS_EC2.md) | Host on AWS EC2 instead of a generic VPS | Accepted |
-| [ADR-0004](docs/adr/0004-RDS.md) | Use Amazon RDS for PostgreSQL instead of self-managed Postgres | Accepted |
-| [ADR-0005](docs/adr/0005-terraform.md) | Provision infrastructure with Terraform and S3 remote state | Accepted |
-| [ADR-0006](docs/adr/0006-docker.md) | Run Caddy and the app as containers with Docker Compose | Accepted |
-| [ADR-0007](docs/adr/0007-deploy.md) | Deploy with SSM Run Command and GitHub OIDC | Accepted |
-| [ADR-0008](docs/adr/0008-secrets.md) | Store secrets in SSM Parameter Store | Accepted |
-| [ADR-0009](docs/adr/0009-public.md) | Public EC2 subnet, private RDS subnets, no NAT gateway | Accepted |
-| [ADR-0010](docs/adr/0010-wildcard.md) | Wildcard certificate (DNS-01) instead of on-demand TLS | Accepted |
-| [ADR-0011](docs/adr/0011-schema.md) | Shared database schema with a tenant_id column | Accepted |
-| [ADR-0012](docs/adr/0012-subdomain.md) | Subdomain naming rules and reserved names | Accepted |
+| [ADR-0001](docs/adr/ADR_001-Caddy.md) | Use Caddy as reverse proxy and TLS terminator | Accepted |
+| [ADR-0002](docs/adr/ADR_002-Cloudflare.md) | Use Cloudflare DNS instead of Route 53 | Accepted |
+| [ADR-0003](docs/adr/ADR_003-AWS_EC2.md) | Host on AWS EC2 instead of a generic VPS | Accepted |
+| [ADR-0004](docs/adr/ADR_004-RDS.md) | Use Amazon RDS for PostgreSQL instead of self-managed Postgres | Accepted |
+| [ADR-0005](docs/adr/ADR_005-terraform.md) | Provision infrastructure with Terraform and S3 remote state | Accepted |
+| [ADR-0006](docs/adr/ADR_006-docker.md) | Run Caddy and the app as containers with Docker Compose | Accepted |
+| [ADR-0007](docs/adr/ADR_007-deploy.md) | Deploy with SSM Run Command and GitHub OIDC | Accepted |
+| [ADR-0008](docs/adr/ADR_008-secrets.md) | Store secrets in SSM Parameter Store | Accepted |
+| [ADR-0009](docs/adr/ADR_009-public.md) | Public EC2 subnet, private RDS subnets, no NAT gateway | Accepted |
+| [ADR-0010](docs/adr/ADR_010-wildcard.md) | Wildcard certificate (DNS-01) instead of on-demand TLS | Accepted |
+| [ADR-0011](docs/adr/ADR_011-schema.md) | Shared database schema with a tenant_id column | Accepted |
+| [ADR-0012](docs/adr/ADR_012-subdomain.md) | Subdomain naming rules and reserved names | Accepted |
+| [ADR-0013](docs/adr/ADR_013_migrations.md) | Subdomain naming rules and reserved names | Accepted |
+| [ADR-0014](docs/adr/ADR_014_authentication.md) | Subdomain naming rules and reserved names | Accepted |
 
 ### Featured: ADR-0001, Caddy as reverse proxy and TLS terminator
 
