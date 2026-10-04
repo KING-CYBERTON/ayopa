@@ -3,111 +3,123 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
-	"net"
 	"net/http"
 	"os"
 	"os/signal"
-	"regexp"
-	"strings"
 	"syscall"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/KING-CYBERTON/ayopa/internal/db"
+	"github.com/KING-CYBERTON/ayopa/internal/store"
+	"github.com/KING-CYBERTON/ayopa/internal/web"
+	"github.com/KING-CYBERTON/ayopa/migrations"
 )
 
-type ctxKey string
-
-const tenantKey ctxKey = "tenant"
-
-type Tenant struct {
-	ID        int64
-	Subdomain string
-}
-
-var subRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$`)
-
-func tenantMiddleware(base string, pool *pgxpool.Pool, next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		host := strings.ToLower(r.Host)
-		if h, _, err := net.SplitHostPort(host); err == nil {
-			host = h
-		}
-		if host == base || host == "www."+base {
-			next.ServeHTTP(w, r) // main site, no tenant
-			return
-		}
-		sub, ok := strings.CutSuffix(host, "."+base)
-		if !ok || !subRe.MatchString(sub) {
-			http.NotFound(w, r)
-			return
-		}
-		t := Tenant{Subdomain: sub}
-		err := pool.QueryRow(r.Context(),
-			`SELECT id FROM tenants WHERE subdomain = $1`, sub).Scan(&t.ID)
-		if errors.Is(err, pgx.ErrNoRows) {
-			http.NotFound(w, r)
-			return
-		}
-		if err != nil {
-			slog.Error("tenant lookup", "err", err)
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-		ctx := context.WithValue(r.Context(), tenantKey, t)
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
-}
-
 func main() {
-	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	slog.SetDefault(logger)
+
+	if len(os.Args) > 1 && os.Args[1] == "migrate" {
+		os.Exit(runMigrate(logger))
+	}
+	os.Exit(runServer(logger))
+}
+
+func runMigrate(log *slog.Logger) int {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	pool, err := pgxpool.New(ctx, os.Getenv("DATABASE_URL"))
+	if err != nil {
+		log.Error("connect", "err", err)
+		return 1
+	}
+	defer pool.Close()
+
+	applied, err := db.Migrate(ctx, pool, migrations.FS)
+	if err != nil {
+		log.Error("migrate", "err", err)
+		return 1
+	}
+	log.Info("migrations complete", "applied", applied)
+	return 0
+}
+
+func runServer(log *slog.Logger) int {
+	cfg := web.ConfigFromEnv()
+	dbURL := os.Getenv("DATABASE_URL")
+	if cfg.BaseDomain == "" || dbURL == "" {
+		log.Error("BASE_DOMAIN and DATABASE_URL are required")
+		return 1
+	}
+	addr := os.Getenv("ADDR")
+	if addr == "" {
+		addr = "127.0.0.1:8080"
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	pool, err := pgxpool.New(ctx, os.Getenv("DATABASE_URL"))
+	pool, err := pgxpool.New(ctx, dbURL)
 	if err != nil {
-		slog.Error("db pool", "err", err)
-		os.Exit(1)
+		log.Error("db pool", "err", err)
+		return 1
 	}
 	defer pool.Close()
+	st := store.New(pool)
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
-		c, cancel := context.WithTimeout(r.Context(), 2*time.Second)
-		defer cancel()
-		if err := pool.Ping(c); err != nil {
-			http.Error(w, "db unavailable", http.StatusServiceUnavailable)
-			return
-		}
-		fmt.Fprintln(w, "ok")
-	})
-	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
-		if t, ok := r.Context().Value(tenantKey).(Tenant); ok {
-			fmt.Fprintf(w, "Welcome to tenant %q (id %d)\n", t.Subdomain, t.ID)
-			return
-		}
-		fmt.Fprintln(w, "Main site: signup goes here")
-	})
+	go cleanupSessions(ctx, log, st)
 
 	srv := &http.Server{
-		Addr:              os.Getenv("ADDR"),
-		Handler:           tenantMiddleware(os.Getenv("BASE_DOMAIN"), pool, mux),
+		Addr:              addr,
+		Handler:           web.New(cfg, st, log).Handler(),
 		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      15 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 
+	errCh := make(chan error, 1)
 	go func() {
-		slog.Info("listening", "addr", srv.Addr)
-		if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
-			slog.Error("server", "err", err)
-			os.Exit(1)
-		}
+		log.Info("listening", "addr", addr)
+		errCh <- srv.ListenAndServe()
 	}()
 
-	<-ctx.Done()
+	select {
+	case err := <-errCh:
+		if !errors.Is(err, http.ErrServerClosed) {
+			log.Error("server", "err", err)
+			return 1
+		}
+	case <-ctx.Done():
+	}
+
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	srv.Shutdown(shutdownCtx)
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Error("shutdown", "err", err)
+		return 1
+	}
+	return 0
+}
+
+func cleanupSessions(ctx context.Context, log *slog.Logger, st *store.Store) {
+	ticker := time.NewTicker(time.Hour)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			n, err := st.DeleteExpiredSessions(ctx)
+			if err != nil {
+				log.Error("cleanup sessions", "err", err)
+			} else if n > 0 {
+				log.Info("expired sessions removed", "count", n)
+			}
+		}
+	}
 }

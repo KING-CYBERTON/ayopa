@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ayopa_test
+    ports:
+      - "127.0.0.1:5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d ayopa_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
