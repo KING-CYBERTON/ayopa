@@ -1,5 +1,5 @@
-// Package web contains the HTTP layer: routing, tenant resolution,
-// signup, login, sessions and the security middleware.
+// Package web contains the HTTP layer: host resolution, the mall directory,
+// shop pages, the admin area, sessions and the security middleware.
 package web
 
 import (
@@ -9,29 +9,24 @@ import (
 )
 
 type Config struct {
-	BaseDomain   string
-	Scheme       string // used to build links to tenant subdomains
+	Scheme       string // used to build links to shops
 	Port         string // e.g. ":8080" for local development, empty in production
 	CookieSecure bool
 	TrustProxy   bool // trust X-Forwarded-For (only safe behind Caddy)
 	SessionTTL   time.Duration
-
-	SignupLimit  int
-	SignupWindow time.Duration
+	InviteTTL    time.Duration
 	LoginLimit   int
 	LoginWindow  time.Duration
 }
 
 func ConfigFromEnv() Config {
 	return Config{
-		BaseDomain:   os.Getenv("BASE_DOMAIN"),
 		Scheme:       envOr("PUBLIC_SCHEME", "https"),
 		Port:         os.Getenv("PUBLIC_PORT"),
 		CookieSecure: envBool("COOKIE_SECURE", true),
 		TrustProxy:   envBool("TRUST_PROXY", false),
 		SessionTTL:   7 * 24 * time.Hour,
-		SignupLimit:  5,
-		SignupWindow: time.Hour,
+		InviteTTL:    48 * time.Hour,
 		LoginLimit:   10,
 		LoginWindow:  15 * time.Minute,
 	}

@@ -1,0 +1,5 @@
+# One mall domain per line. Blank lines and # comments are ignored.
+# Each domain needs its own zone in the same Cloudflare account, and an entry
+# in mall_zones in infra/terraform.tfvars. Adding a line here and merging to
+# main gets the mall a wildcard certificate on the next deploy.
+ayopa.co.ke

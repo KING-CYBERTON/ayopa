@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -18,14 +20,39 @@ import (
 	"github.com/KING-CYBERTON/ayopa/migrations"
 )
 
+const usage = `usage: server [command] [flags]
+
+  serve               run the web server (default)
+  migrate             apply database migrations
+  create-mall         -domain D -name N [-reserve a,b,c]
+  create-tenant       -mall D -subdomain S -name N -owner EMAIL
+  create-invite       -mall D -subdomain S -email EMAIL [-role owner|staff]
+  set-tenant-status   -mall D -subdomain S -status active|suspended
+  set-mall-status     -mall D -status active|suspended
+  list                show malls and shops
+`
+
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	slog.SetDefault(logger)
 
-	if len(os.Args) > 1 && os.Args[1] == "migrate" {
-		os.Exit(runMigrate(logger))
+	cmd, args := "serve", os.Args[1:]
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		cmd, args = args[0], args[1:]
 	}
-	os.Exit(runServer(logger))
+
+	switch cmd {
+	case "serve":
+		os.Exit(runServer(logger))
+	case "migrate":
+		os.Exit(runMigrate(logger))
+	case "create-mall", "create-tenant", "create-invite",
+		"set-tenant-status", "set-mall-status", "list":
+		os.Exit(runAdmin(cmd, args))
+	default:
+		fmt.Fprintf(os.Stderr, "unknown command %q\n\n%s", cmd, usage)
+		os.Exit(2)
+	}
 }
 
 func runMigrate(log *slog.Logger) int {
@@ -49,10 +76,9 @@ func runMigrate(log *slog.Logger) int {
 }
 
 func runServer(log *slog.Logger) int {
-	cfg := web.ConfigFromEnv()
 	dbURL := os.Getenv("DATABASE_URL")
-	if cfg.BaseDomain == "" || dbURL == "" {
-		log.Error("BASE_DOMAIN and DATABASE_URL are required")
+	if dbURL == "" {
+		log.Error("DATABASE_URL is required")
 		return 1
 	}
 	addr := os.Getenv("ADDR")
@@ -71,11 +97,11 @@ func runServer(log *slog.Logger) int {
 	defer pool.Close()
 	st := store.New(pool)
 
-	go cleanupSessions(ctx, log, st)
+	go cleanup(ctx, log, st)
 
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           web.New(cfg, st, log).Handler(),
+		Handler:           web.New(web.ConfigFromEnv(), st, log).Handler(),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      15 * time.Second,
@@ -106,7 +132,7 @@ func runServer(log *slog.Logger) int {
 	return 0
 }
 
-func cleanupSessions(ctx context.Context, log *slog.Logger, st *store.Store) {
+func cleanup(ctx context.Context, log *slog.Logger, st *store.Store) {
 	ticker := time.NewTicker(time.Hour)
 	defer ticker.Stop()
 	for {
@@ -114,11 +140,15 @@ func cleanupSessions(ctx context.Context, log *slog.Logger, st *store.Store) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			n, err := st.DeleteExpiredSessions(ctx)
-			if err != nil {
+			if n, err := st.DeleteExpiredSessions(ctx); err != nil {
 				log.Error("cleanup sessions", "err", err)
 			} else if n > 0 {
 				log.Info("expired sessions removed", "count", n)
+			}
+			if n, err := st.DeleteStaleInvites(ctx); err != nil {
+				log.Error("cleanup invites", "err", err)
+			} else if n > 0 {
+				log.Info("stale invites removed", "count", n)
 			}
 		}
 	}

@@ -49,7 +49,7 @@ func Normalize(s string) string {
 // Validate expects a normalized name. It rejects bad formats, punycode
 // labels (lookalike names) and reserved names.
 func Validate(s string) error {
-	if !pattern.MatchString(s) || strings.HasPrefix(s, "xn--") {
+	if !ValidFormat(s) {
 		return ErrInvalid
 	}
 	if IsReserved(s) {

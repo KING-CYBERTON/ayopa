@@ -25,27 +25,24 @@ small { color: #666; }
 {{define "foot"}}</body>
 </html>{{end}}
 
-{{define "signup"}}{{template "head" .}}
-<h1>Create your workspace</h1>
-{{if .Error}}<p class="err">{{.Error}}</p>{{end}}
-<form method="post" action="/signup">
-<label for="subdomain">Subdomain</label>
-<input id="subdomain" name="subdomain" value="{{.Subdomain}}" required minlength="3" maxlength="63" autocomplete="off" autocapitalize="none">
-<small>Your workspace will live at <b>yourname</b>.{{.BaseDomain}}</small>
-<label for="email">Email</label>
-<input id="email" name="email" type="email" value="{{.Email}}" required autocomplete="email">
-<label for="password">Password</label>
-<input id="password" name="password" type="password" required minlength="10" maxlength="128" autocomplete="new-password">
-<small>At least 10 characters.</small>
-<button type="submit">Create workspace</button>
-</form>
+{{define "directory"}}{{template "head" .}}
+<h1>{{.MallName}}</h1>
+<p><small>Shops in this mall</small></p>
+{{range .Shops}}<div class="note"><a href="{{.URL}}">{{.Name}}</a></div>
+{{else}}<p><small>No shops yet.</small></p>{{end}}
+{{template "foot" .}}{{end}}
+
+{{define "storefront"}}{{template "head" .}}
+<h1>{{.Shop}}</h1>
+<p><small>Part of {{.MallName}}</small></p>
+<p>This storefront is being set up.</p>
+<p><small><a href="/admin/login">Shop admin</a></small></p>
 {{template "foot" .}}{{end}}
 
 {{define "login"}}{{template "head" .}}
-<h1>Log in to {{.Tenant}}</h1>
-{{if .Notice}}<p class="ok">{{.Notice}}</p>{{end}}
+<h1>Log in to {{.Shop}}</h1>
 {{if .Error}}<p class="err">{{.Error}}</p>{{end}}
-<form method="post" action="/login">
+<form method="post" action="/admin/login">
 <label for="email">Email</label>
 <input id="email" name="email" type="email" value="{{.Email}}" required autocomplete="username">
 <label for="password">Password</label>
@@ -54,12 +51,29 @@ small { color: #666; }
 </form>
 {{template "foot" .}}{{end}}
 
+{{define "setup"}}{{template "head" .}}
+<h1>Set up {{.Shop}}</h1>
+{{if .Error}}<p class="err">{{.Error}}</p>{{end}}
+{{if .Token}}
+<p>Choose a password for <b>{{.Email}}</b>.</p>
+<form method="post" action="/admin/setup">
+<input type="hidden" name="token" value="{{.Token}}">
+<label for="password">Password</label>
+<input id="password" name="password" type="password" required minlength="10" maxlength="128" autocomplete="new-password">
+<small>At least 10 characters.</small>
+<label for="confirm">Repeat password</label>
+<input id="confirm" name="confirm" type="password" required minlength="10" maxlength="128" autocomplete="new-password">
+<button type="submit">Save and continue</button>
+</form>
+{{end}}
+{{template "foot" .}}{{end}}
+
 {{define "dashboard"}}{{template "head" .}}
-<h1>{{.Tenant}}</h1>
-<p><small>Signed in as {{.UserEmail}}</small></p>
-<form method="post" action="/logout"><button type="submit">Log out</button></form>
+<h1>{{.Shop}}</h1>
+<p><small>Signed in as {{.UserEmail}} ({{.Role}}) in {{.MallName}}</small></p>
+<form method="post" action="/admin/logout"><button type="submit">Log out</button></form>
 <h2>Notes</h2>
-<form method="post" action="/notes">
+<form method="post" action="/admin/notes">
 <label for="body">New note</label>
 <textarea id="body" name="body" rows="3" required maxlength="2000"></textarea>
 <button type="submit">Add note</button>

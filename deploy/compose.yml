@@ -4,7 +4,6 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL}
-      BASE_DOMAIN: ${BASE_DOMAIN}
       ADDR: 0.0.0.0:8080
       TRUST_PROXY: "true"
       COOKIE_SECURE: "true"
@@ -18,7 +17,6 @@ services:
       - "443:443/udp"
     environment:
       CF_API_TOKEN: ${CF_API_TOKEN}
-      BASE_DOMAIN: ${BASE_DOMAIN}
       ACME_CA: ${ACME_CA:-https://acme-v02.api.letsencrypt.org/directory}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
