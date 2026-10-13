@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE TABLE IF NOT EXISTS tenants (
     id         BIGSERIAL PRIMARY KEY,
     subdomain  TEXT NOT NULL UNIQUE
@@ -13,3 +14,8 @@ CREATE TABLE IF NOT EXISTS users (
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (tenant_id, email)
 );
+
+-- +goose Down
+-- WARNING: destroys all user and tenant data. For development only.
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS tenants;

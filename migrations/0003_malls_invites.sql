@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE TABLE IF NOT EXISTS malls (
     id         BIGSERIAL PRIMARY KEY,
     domain     TEXT NOT NULL UNIQUE
@@ -44,3 +45,16 @@ CREATE TABLE IF NOT EXISTS invites (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS invites_tenant_idx ON invites (tenant_id);
+
+-- +goose Down
+-- WARNING: destroys all invite data and reverts tenants to single-mall structure.
+-- Restoring tenants_subdomain_key may fail if tenants from different malls share
+-- a subdomain. For development only; never run down migrations in production.
+DROP TABLE IF EXISTS invites;
+ALTER TABLE users DROP COLUMN IF EXISTS role;
+DROP INDEX IF EXISTS tenants_mall_subdomain_idx;
+ALTER TABLE tenants ADD CONSTRAINT tenants_subdomain_key UNIQUE (subdomain);
+ALTER TABLE tenants DROP COLUMN IF EXISTS status;
+ALTER TABLE tenants DROP COLUMN IF EXISTS name;
+ALTER TABLE tenants DROP COLUMN IF EXISTS mall_id;
+DROP TABLE IF EXISTS malls;

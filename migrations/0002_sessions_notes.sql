@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE UNIQUE INDEX IF NOT EXISTS users_tenant_lower_email_idx
     ON users (tenant_id, lower(email));
 
@@ -18,3 +19,9 @@ CREATE TABLE IF NOT EXISTS notes (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS notes_tenant_idx ON notes (tenant_id, created_at DESC);
+
+-- +goose Down
+-- WARNING: destroys all session and note data. For development only.
+DROP TABLE IF EXISTS notes;
+DROP TABLE IF EXISTS sessions;
+DROP INDEX IF EXISTS users_tenant_lower_email_idx;
