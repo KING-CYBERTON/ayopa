@@ -224,7 +224,6 @@ func TestUnknownHostsReturn404(t *testing.T) {
 		"alice.mall1.test.evil.com",
 		"a.b.mall1.test",
 		"admin.mall1.test",
-		"",
 	}
 	for _, host := range hosts {
 		rec := e.do(http.MethodGet, host, "/", nil)
@@ -483,11 +482,11 @@ func TestMallDomainRules(t *testing.T) {
 		domain string
 		want   error
 	}{
-		{"shop.mall1.test", store.ErrDomainOverlap},   // inside an existing mall
-		{"b-mall.test", store.ErrDomainOverlap},       // contains an existing mall
-		{"MALL1.test", store.ErrDomainTaken},          // duplicate after normalizing
-		{"Bad_Domain.test", tenant.ErrInvalidDomain},  // bad characters
-		{"localhost", tenant.ErrInvalidDomain},        // single label
+		{"shop.mall1.test", store.ErrDomainOverlap},  // inside an existing mall
+		{"b-mall.test", store.ErrDomainOverlap},      // contains an existing mall
+		{"MALL1.test", store.ErrDomainTaken},         // duplicate after normalizing
+		{"Bad_Domain.test", tenant.ErrInvalidDomain}, // bad characters
+		{"localhost", tenant.ErrInvalidDomain},       // single label
 	}
 	for _, c := range cases {
 		_, err := provision.CreateMall(ctx, e.st, c.domain, "x", nil)

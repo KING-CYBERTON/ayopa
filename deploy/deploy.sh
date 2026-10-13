@@ -29,8 +29,8 @@ docker compose pull
 
 # One certificate block per mall, generated from malls.txt.
 bash ./render-caddyfile.sh malls.txt > Caddyfile.new
-mv Caddyfile.new Caddyfile
-chmod 644 Caddyfile
+cat Caddyfile.new > Caddyfile
+rm Caddyfile.new
 
 # Reject a broken Caddyfile before touching the running proxy, because one
 # typo would otherwise take every mall offline.

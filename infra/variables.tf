@@ -9,3 +9,8 @@ variable "github_oidc_subject_prefix" {
   default     = "repo:KING-CYBERTON@82710182/ayopa@1402852750"
 }
 
+
+variable "mall_zones" {
+  description = "Mall domain => Cloudflare zone ID"
+  type        = map(string)
+}
