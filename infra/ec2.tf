@@ -60,6 +60,9 @@ resource "aws_instance" "app" {
   iam_instance_profile        = aws_iam_instance_profile.app.name
   user_data                   = file("${path.module}/user_data.sh")
   user_data_replace_on_change = true
+  lifecycle {
+    ignore_changes = [ami]
+  }
 
   metadata_options { http_tokens = "required" } # IMDSv2 only
   root_block_device {
