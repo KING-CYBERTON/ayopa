@@ -1,6 +1,6 @@
 # ADR-0013: Run database migrations from the app binary during deploy
 
-- **Status:** Accepted
+- **Status:** Accepted (migration tool superseded by ADR-0020)
 - **Date:** 2026-10-03
 - **Deciders:** Project author
 

@@ -99,7 +99,7 @@ short-lived OIDC credentials. Secrets live in SSM Parameter Store.
 | CI/CD | GitHub Actions, OIDC, SSM Run Command | No stored keys, no open SSH port (0007) |
 | Secrets | SSM Parameter Store (SecureString) | Free, IAM-scoped (0008) |
 | Auth | argon2id, server-side sessions, `__Host-` cookies | Tenant-bound sessions (0014) |
-| Migrations | Embedded SQL run by `app migrate` at deploy | Repeatable, aborts bad deploys (0013) |
+| Migrations | goose embedded in app binary, run by `app migrate` at deploy | Repeatable, aborts bad deploys, down migrations for dev (0013, 0020) |
 
 ## Repository layout
 
@@ -143,8 +143,9 @@ and what would make me revisit it.
 | [ADR-0010](docs/adr/ADR_010-wildcard.md) | Wildcard certificate (DNS-01) instead of on-demand TLS | Accepted |
 | [ADR-0011](docs/adr/ADR_011-schema.md) | Shared database schema with a tenant_id column | Accepted |
 | [ADR-0012](docs/adr/ADR_012-subdomain.md) | Subdomain naming rules and reserved names | Accepted |
-| [ADR-0013](docs/adr/ADR_013_migrations.md) | Subdomain naming rules and reserved names | Accepted |
-| [ADR-0014](docs/adr/ADR_014_authentication.md) | Subdomain naming rules and reserved names | Accepted |
+| [ADR-0013](docs/ADR/ADR_013_migrations.md) | Run database migrations from the app binary at deploy time | Accepted (migration tool superseded by ADR-0020) |
+| [ADR-0014](docs/ADR/ADR_014_authentication.md) | Authentication: argon2id, server-side sessions, `__Host-` cookies | Accepted |
+| [ADR-0020](docs/ADR/ADR_020_goose_migrations.md) | Use goose as the database migration tool | Accepted |
 
 ## Security
 
@@ -200,6 +201,31 @@ go run ./cmd/server
 Open `http://localhost:8080`, sign up, and you are redirected to
 `http://<name>.localhost:8080/login`. Browsers resolve `*.localhost` to your own
 machine. Use a separate `ayopa_dev` database for manual work, never `ayopa_test`.
+
+### Migration workflow (development)
+
+`server migrate` is the only thing production uses. For local development and
+authoring new migrations, install the goose CLI:
+
+```bash
+go install github.com/pressly/goose/v3/cmd/goose@latest
+```
+
+Check migration status:
+
+```bash
+goose -dir migrations postgres "$DATABASE_URL" status
+```
+
+Create a new migration file:
+
+```bash
+goose -dir migrations create <name> sql
+```
+
+Running `server migrate` at deploy time applies every unapplied migration from
+the embedded SQL files. The goose CLI is for local development only; it is never
+used in CI or production (RDS is in private subnets unreachable from CI).
 
 ## Deploy your own copy
 
@@ -338,7 +364,8 @@ flowchart LR
 | Shell on the server | `aws ssm start-session --target $(terraform -chdir=infra output -raw instance_id)` |
 | App and proxy logs | `sudo docker compose -f /opt/ayopa/compose.yml logs app --tail 100` (or `caddy`) |
 | Roll back | Re-run an older successful workflow, or `sudo bash /opt/ayopa/deploy.sh <old-sha>` (ECR keeps the last 10 images) |
-| Add a migration | New numbered file in `migrations/`. Forward-only, additive, never edit an applied file |
+| Add a migration | New numbered file in `migrations/` (`goose -dir migrations create <name> sql`). Forward-only, additive, never edit an applied file |
+| Check migration status | `goose -dir migrations postgres "$DATABASE_URL" status` (local only; RDS is unreachable from CI) |
 | Rotate the Cloudflare token | Roll it in Cloudflare, `aws ssm put-parameter --overwrite`, then redeploy. Update the token's IP allowlist if it has one |
 | Certificates | Issued and renewed automatically by Caddy, stored in the `caddy_data` volume |
 | Reserve a new name | Add it to `internal/tenant/validate.go` whenever you create a DNS record for it |
