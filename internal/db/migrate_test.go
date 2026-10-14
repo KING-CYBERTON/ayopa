@@ -2,7 +2,6 @@ package db_test
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -86,7 +85,7 @@ func gooseVersions(t *testing.T, ctx context.Context, pool *pgxpool.Pool) []int6
 // TestMigrateAdoptsHandBuiltDatabase simulates a production database that was
 // built by the old custom runner: the tables exist, a schema_migrations table
 // is present, but no goose_db_version table. Migrate must succeed, re-apply
-// all migrations idempotently, and record versions 1–3 in goose_db_version.
+// all migrations idempotently, and record every version in goose_db_version.
 func TestMigrateAdoptsHandBuiltDatabase(t *testing.T) {
 	dsn := os.Getenv("TEST_DATABASE_URL")
 	if dsn == "" {
@@ -124,20 +123,21 @@ func TestMigrateAdoptsHandBuiltDatabase(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Second run: goose sees no version table, so it re-applies all three
-	// migrations. Because the SQL is idempotent the statements are no-ops.
+	// Second run: goose sees no version table, so it re-applies all migrations.
+	// Because the SQL is idempotent the statements are no-ops.
 	applied, err := db.Migrate(ctx, pool, migrations.FS)
 	if err != nil {
 		t.Fatalf("adopting a database that already has the tables failed: %v", err)
 	}
-	if len(applied) != 3 {
-		t.Fatalf("expected 3 files re-applied, got %d: %v", len(applied), applied)
+	wantCount := len(migrations.FileNames()) // derive from the real migration set
+	if len(applied) != wantCount {
+		t.Fatalf("expected %d files re-applied, got %d: %v", wantCount, len(applied), applied)
 	}
 
-	// goose_db_version should now record versions 1, 2, 3.
+	// goose_db_version should now record one version per migration file.
 	versions := gooseVersions(t, ctx, pool)
-	if fmt.Sprint(versions) != "[1 2 3]" {
-		t.Fatalf("goose versions after adoption = %v, want [1 2 3]", versions)
+	if len(versions) != wantCount {
+		t.Fatalf("goose versions after adoption = %v, want %d entries", versions, wantCount)
 	}
 }
 
@@ -163,13 +163,15 @@ func TestMigrateUpDownUp(t *testing.T) {
 
 	pool := mustPool(t, ctx, dsn, schema)
 
+	wantCount := len(migrations.FileNames())
+
 	// Up.
 	applied, err := db.Migrate(ctx, pool, migrations.FS)
 	if err != nil {
 		t.Fatalf("up: %v", err)
 	}
-	if len(applied) != 3 {
-		t.Fatalf("expected 3 applied, got %d: %v", len(applied), applied)
+	if len(applied) != wantCount {
+		t.Fatalf("expected %d applied, got %d: %v", wantCount, len(applied), applied)
 	}
 	if !tableExists(t, ctx, pool, "malls") {
 		t.Fatal("malls table missing after up")
@@ -197,8 +199,8 @@ func TestMigrateUpDownUp(t *testing.T) {
 	if err != nil {
 		t.Fatalf("second up: %v", err)
 	}
-	if len(applied) != 3 {
-		t.Fatalf("expected 3 applied on second up, got %d: %v", len(applied), applied)
+	if len(applied) != wantCount {
+		t.Fatalf("expected %d applied on second up, got %d: %v", wantCount, len(applied), applied)
 	}
 	if !tableExists(t, ctx, pool, "malls") {
 		t.Fatal("malls table missing after second up")
