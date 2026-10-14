@@ -1,0 +1,43 @@
+{{define "admin_settings"}}{{template "head" .}}
+<h1>{{.Shop}}</h1>
+<p><small>Signed in as {{.UserEmail}} ({{.Role}}) &mdash; <a href="/admin">Dashboard</a></small></p>
+<nav>
+  <a href="/admin/products">Products</a>
+  <a href="/admin/categories">Categories</a>
+  <a href="/admin/settings"><b>Settings</b></a>
+  <form method="post" action="/admin/logout" style="display:inline;margin:0"><button class="inline-btn" type="submit">Log out</button></form>
+</nav>
+<h2>Shop Settings</h2>
+{{if .Error}}<p class="err">{{.Error}}</p>{{end}}
+{{if .Notice}}<p class="ok">{{.Notice}}</p>{{end}}
+<form method="post" action="/admin/settings">
+<fieldset>
+  <legend>Identity</legend>
+  <label for="tagline">Tagline <small>(max 140 characters)</small></label>
+  <input id="tagline" name="tagline" type="text" value="{{.Profile.Tagline}}" maxlength="140">
+  <label for="description">Description <small>(max 600 characters)</small></label>
+  <textarea id="description" name="description" rows="4" maxlength="600">{{.Profile.Description}}</textarea>
+</fieldset>
+<fieldset>
+  <legend>Contact</legend>
+  <label for="contact_email">Contact Email</label>
+  <input id="contact_email" name="contact_email" type="email" value="{{.Profile.ContactEmail}}" maxlength="254">
+  <label for="phone">Phone</label>
+  <input id="phone" name="phone" type="tel" value="{{.Profile.Phone}}" maxlength="30">
+  <label for="address">Address <small>(max 300 characters)</small></label>
+  <textarea id="address" name="address" rows="2" maxlength="300">{{.Profile.Address}}</textarea>
+  <label for="opening_hours">Opening Hours <small>(max 300 characters)</small></label>
+  <textarea id="opening_hours" name="opening_hours" rows="2" maxlength="300">{{.Profile.OpeningHours}}</textarea>
+</fieldset>
+<fieldset>
+  <legend>Currency</legend>
+  <label for="currency">Prices displayed in</label>
+  <select id="currency" name="currency">
+    {{range $c := currencies}}
+    <option value="{{$c}}"{{if eq $c $.Profile.Currency}} selected{{end}}>{{$c}}</option>
+    {{end}}
+  </select>
+</fieldset>
+<button type="submit">Save settings</button>
+</form>
+{{template "foot" .}}{{end}}

@@ -1,0 +1,27 @@
+{{define "product"}}
+{{template "shop_head" .}}
+<nav class="site-nav">
+  <a href="/" class="brand">{{.Shop}}</a>
+  <div class="nav-links">
+    <a href="/">All products</a>
+  </div>
+</nav>
+<main>
+<div class="product-detail">
+  <p class="detail-cat"><a href="/">← Back to shop</a>{{if .Product.CategoryName}} &middot; {{.Product.CategoryName}}{{end}}</p>
+  <h1>{{.Product.Name}}</h1>
+  <div class="detail-price">{{formatMoney .Product.PriceMinor .Currency}}</div>
+  <div class="detail-meta">
+    {{if .Product.CategoryName}}<span>Category: {{.Product.CategoryName}}</span>{{end}}
+  </div>
+  {{if gt .Product.Stock 0}}
+    {{if le .Product.Stock 5}}<p class="detail-stock">Only {{.Product.Stock}} left in stock</p>{{end}}
+  {{else}}<p class="detail-stock">Currently out of stock</p>{{end}}
+  {{if .Product.Description}}<div class="detail-desc">{{.Product.Description}}</div>{{end}}
+  <p class="add-cart-note">To order, contact the shop directly.</p>
+</div>
+</main>
+<footer class="site-footer">{{.Shop}} &mdash; part of {{.MallName}}</footer>
+</body>
+</html>
+{{end}}

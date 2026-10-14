@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -151,6 +152,11 @@ func wantStatus(t *testing.T, rec *httptest.ResponseRecorder, want int) {
 	if rec.Code != want {
 		t.Fatalf("status %d, want %d; body: %.200s", rec.Code, want, rec.Body.String())
 	}
+}
+
+func TestTemplatesParse(t *testing.T) {
+	// Verifies that all embedded templates load without error at server init.
+	_ = New(testConfig(), nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
 }
 
 func TestHealthz(t *testing.T) {
@@ -727,4 +733,348 @@ func TestLoginIsRateLimited(t *testing.T) {
 			t.Fatalf("attempt %d: status %d, want %d", i+1, rec.Code, code)
 		}
 	}
+}
+
+// ---- catalog / storefront tests ----
+
+func (e *testEnv) createProduct(ctx context.Context, t *testing.T, tenantID int64, name, desc string, price int64, stock int) store.Product {
+	t.Helper()
+	p, err := e.st.CreateProduct(ctx, tenantID, name, desc, price, stock, nil)
+	if err != nil {
+		t.Fatalf("create product %q: %v", name, err)
+	}
+	return p
+}
+
+func (e *testEnv) publishProduct(ctx context.Context, t *testing.T, tenantID, productID int64) {
+	t.Helper()
+	if err := e.st.SetProductStatus(ctx, tenantID, productID, store.ProductPublished); err != nil {
+		t.Fatalf("publish product %d: %v", productID, err)
+	}
+}
+
+func TestStorefrontShowsPublishedProducts(t *testing.T) {
+	e := newEnv(t, testConfig())
+	e.mall("mall1.test")
+	e.setup("mall1.test", "alice", "owner@example.com")
+	ctx := context.Background()
+	m, _ := e.st.MallByDomain(ctx, "mall1.test")
+	alice, _ := e.st.TenantBySubdomain(ctx, m.ID, "alice")
+
+	pub := e.createProduct(ctx, t, alice.ID, "Widget", "a widget", 1000, 5)
+	e.publishProduct(ctx, t, alice.ID, pub.ID)
+	draft := e.createProduct(ctx, t, alice.ID, "Secret Draft", "hidden", 500, 1)
+	_ = draft
+
+	rec := e.do(http.MethodGet, "alice.mall1.test", "/", nil)
+	wantStatus(t, rec, http.StatusOK)
+	body := rec.Body.String()
+	if !strings.Contains(body, "Widget") {
+		t.Error("storefront missing published product")
+	}
+	if strings.Contains(body, "Secret Draft") {
+		t.Error("storefront leaked draft product")
+	}
+}
+
+func TestStorefrontNoindexOnFilter(t *testing.T) {
+	e := newEnv(t, testConfig())
+	e.mall("mall1.test")
+	e.setup("mall1.test", "alice", "owner@example.com")
+
+	rec := e.do(http.MethodGet, "alice.mall1.test", "/?q=test", nil)
+	wantStatus(t, rec, http.StatusOK)
+	if !strings.Contains(rec.Body.String(), "noindex") {
+		t.Error("filtered storefront missing noindex")
+	}
+
+	rec = e.do(http.MethodGet, "alice.mall1.test", "/", nil)
+	if strings.Contains(rec.Body.String(), "noindex") {
+		t.Error("unfiltered storefront should not have noindex")
+	}
+}
+
+func TestStorefrontTenantIsolation(t *testing.T) {
+	e := newEnv(t, testConfig())
+	e.mall("mall1.test")
+	e.setup("mall1.test", "alice", "owner@example.com")
+	e.setup("mall1.test", "bob", "bob@example.com")
+	ctx := context.Background()
+	m, _ := e.st.MallByDomain(ctx, "mall1.test")
+	alice, _ := e.st.TenantBySubdomain(ctx, m.ID, "alice")
+	bob, _ := e.st.TenantBySubdomain(ctx, m.ID, "bob")
+
+	aliceProd := e.createProduct(ctx, t, alice.ID, "AliceProduct", "", 1000, 1)
+	e.publishProduct(ctx, t, alice.ID, aliceProd.ID)
+	bobProd := e.createProduct(ctx, t, bob.ID, "BobProduct", "", 2000, 1)
+	e.publishProduct(ctx, t, bob.ID, bobProd.ID)
+
+	rec := e.do(http.MethodGet, "alice.mall1.test", "/", nil)
+	body := rec.Body.String()
+	if strings.Contains(body, "BobProduct") {
+		t.Error("alice's storefront leaked bob's product")
+	}
+	if !strings.Contains(body, "AliceProduct") {
+		t.Error("alice's storefront missing alice's product")
+	}
+}
+
+func TestProductDetailPublished(t *testing.T) {
+	e := newEnv(t, testConfig())
+	e.mall("mall1.test")
+	e.setup("mall1.test", "alice", "owner@example.com")
+	ctx := context.Background()
+	m, _ := e.st.MallByDomain(ctx, "mall1.test")
+	alice, _ := e.st.TenantBySubdomain(ctx, m.ID, "alice")
+
+	p := e.createProduct(ctx, t, alice.ID, "Blue Widget", "A blue widget description.", 2500, 3)
+	e.publishProduct(ctx, t, alice.ID, p.ID)
+
+	rec := e.do(http.MethodGet, "alice.mall1.test", fmt.Sprintf("/shop/%d", p.ID), nil)
+	wantStatus(t, rec, http.StatusOK)
+	body := rec.Body.String()
+	if !strings.Contains(body, "Blue Widget") {
+		t.Error("product page missing name")
+	}
+	if !strings.Contains(body, "blue widget description") {
+		t.Error("product page missing description")
+	}
+}
+
+func TestProductDetailDraftReturns404(t *testing.T) {
+	e := newEnv(t, testConfig())
+	e.mall("mall1.test")
+	e.setup("mall1.test", "alice", "owner@example.com")
+	ctx := context.Background()
+	m, _ := e.st.MallByDomain(ctx, "mall1.test")
+	alice, _ := e.st.TenantBySubdomain(ctx, m.ID, "alice")
+
+	p := e.createProduct(ctx, t, alice.ID, "Hidden Draft", "", 1000, 0)
+	// not published
+	rec := e.do(http.MethodGet, "alice.mall1.test", fmt.Sprintf("/shop/%d", p.ID), nil)
+	wantStatus(t, rec, http.StatusNotFound)
+}
+
+func TestProductDetailTenantIsolation(t *testing.T) {
+	e := newEnv(t, testConfig())
+	e.mall("mall1.test")
+	e.setup("mall1.test", "alice", "owner@example.com")
+	e.setup("mall1.test", "bob", "bob@example.com")
+	ctx := context.Background()
+	m, _ := e.st.MallByDomain(ctx, "mall1.test")
+	_, _ = e.st.TenantBySubdomain(ctx, m.ID, "alice")
+	bob, _ := e.st.TenantBySubdomain(ctx, m.ID, "bob")
+
+	bobProd := e.createProduct(ctx, t, bob.ID, "BobSecret", "", 1000, 1)
+	e.publishProduct(ctx, t, bob.ID, bobProd.ID)
+
+	// Alice's shop cannot see Bob's product by ID
+	rec := e.do(http.MethodGet, "alice.mall1.test", fmt.Sprintf("/shop/%d", bobProd.ID), nil)
+	wantStatus(t, rec, http.StatusNotFound)
+}
+
+func TestAdminProductsRequireLogin(t *testing.T) {
+	e := newEnv(t, testConfig())
+	e.mall("mall1.test")
+	e.shop("mall1.test", "alice", "owner@example.com")
+	host := "alice.mall1.test"
+
+	for _, path := range []string{
+		"/admin/products",
+		"/admin/products/new",
+		"/admin/categories",
+		"/admin/settings",
+	} {
+		rec := e.do(http.MethodGet, host, path, nil)
+		if rec.Code != http.StatusSeeOther {
+			t.Errorf("GET %s unauthenticated: status %d, want redirect", path, rec.Code)
+		}
+	}
+}
+
+func TestAdminCategoryCRUD(t *testing.T) {
+	e := newEnv(t, testConfig())
+	e.mall("mall1.test")
+	cookie := e.setup("mall1.test", "alice", "owner@example.com")
+	host := "alice.mall1.test"
+
+	// Create
+	rec := e.do(http.MethodPost, host, "/admin/categories",
+		url.Values{"name": {"Shoes"}}, cookie)
+	wantStatus(t, rec, http.StatusSeeOther)
+
+	rec = e.do(http.MethodGet, host, "/admin/categories", nil, cookie)
+	if !strings.Contains(rec.Body.String(), "Shoes") {
+		t.Fatal("category not visible after creation")
+	}
+
+	// Duplicate slug is rejected
+	rec = e.do(http.MethodPost, host, "/admin/categories",
+		url.Values{"name": {"Shoes"}}, cookie)
+	wantStatus(t, rec, http.StatusConflict)
+
+	// Rename and delete via path — need the ID
+	ctx := context.Background()
+	m, _ := e.st.MallByDomain(ctx, "mall1.test")
+	alice, _ := e.st.TenantBySubdomain(ctx, m.ID, "alice")
+	cats, _ := e.st.ListCategories(ctx, alice.ID)
+	if len(cats) == 0 {
+		t.Fatal("no categories found")
+	}
+	id := cats[0].ID
+
+	rec = e.do(http.MethodPost, host, fmt.Sprintf("/admin/categories/%d/rename", id),
+		url.Values{"name": {"Footwear"}}, cookie)
+	wantStatus(t, rec, http.StatusSeeOther)
+
+	rec = e.do(http.MethodPost, host, fmt.Sprintf("/admin/categories/%d/delete", id), nil, cookie)
+	wantStatus(t, rec, http.StatusSeeOther)
+
+	cats, _ = e.st.ListCategories(ctx, alice.ID)
+	if len(cats) != 0 {
+		t.Error("category not deleted")
+	}
+}
+
+func TestAdminProductCRUD(t *testing.T) {
+	e := newEnv(t, testConfig())
+	e.mall("mall1.test")
+	cookie := e.setup("mall1.test", "alice", "owner@example.com")
+	host := "alice.mall1.test"
+
+	// Create a product
+	rec := e.do(http.MethodPost, host, "/admin/products/new",
+		url.Values{
+			"name":        {"Test Widget"},
+			"description": {"A test widget."},
+			"price":       {"29.99"},
+			"stock":       {"10"},
+			"category_id": {""},
+		}, cookie)
+	wantStatus(t, rec, http.StatusSeeOther)
+
+	// Find the product
+	ctx := context.Background()
+	m, _ := e.st.MallByDomain(ctx, "mall1.test")
+	alice, _ := e.st.TenantBySubdomain(ctx, m.ID, "alice")
+	products, total, _ := e.st.ListProductsAdmin(ctx, alice.ID, "", 1)
+	if total != 1 {
+		t.Fatalf("expected 1 product, got %d", total)
+	}
+	p := products[0]
+	if p.Name != "Test Widget" {
+		t.Errorf("product name = %q, want 'Test Widget'", p.Name)
+	}
+	if p.PriceMinor != 2999 {
+		t.Errorf("product price_minor = %d, want 2999", p.PriceMinor)
+	}
+	if p.Status != store.ProductDraft {
+		t.Errorf("new product status = %q, want draft", p.Status)
+	}
+
+	// Publish it
+	rec = e.do(http.MethodPost, host, fmt.Sprintf("/admin/products/%d/status", p.ID),
+		url.Values{"status": {"published"}}, cookie)
+	wantStatus(t, rec, http.StatusSeeOther)
+
+	// Verify it's public on the storefront
+	rec = e.do(http.MethodGet, host, "/", nil)
+	if !strings.Contains(rec.Body.String(), "Test Widget") {
+		t.Error("published product not visible on storefront")
+	}
+
+	// Archive it
+	rec = e.do(http.MethodPost, host, fmt.Sprintf("/admin/products/%d/status", p.ID),
+		url.Values{"status": {"archived"}}, cookie)
+	wantStatus(t, rec, http.StatusSeeOther)
+
+	// No longer on storefront
+	rec = e.do(http.MethodGet, host, "/", nil)
+	if strings.Contains(rec.Body.String(), "Test Widget") {
+		t.Error("archived product still visible on storefront")
+	}
+}
+
+func TestAdminSettingsOwnerOnly(t *testing.T) {
+	e := newEnv(t, testConfig())
+	e.mall("mall1.test")
+	ownerCookie := e.setup("mall1.test", "alice", "owner@example.com")
+	host := "alice.mall1.test"
+
+	// Owner can access settings
+	rec := e.do(http.MethodGet, host, "/admin/settings", nil, ownerCookie)
+	wantStatus(t, rec, http.StatusOK)
+
+	// Unauthenticated is redirected
+	rec = e.do(http.MethodGet, host, "/admin/settings", nil)
+	wantStatus(t, rec, http.StatusSeeOther)
+}
+
+func TestStorefrontXSSEscaping(t *testing.T) {
+	e := newEnv(t, testConfig())
+	e.mall("mall1.test")
+	e.setup("mall1.test", "alice", "owner@example.com")
+	ctx := context.Background()
+	m, _ := e.st.MallByDomain(ctx, "mall1.test")
+	alice, _ := e.st.TenantBySubdomain(ctx, m.ID, "alice")
+
+	xss := `<script>alert(1)</script>`
+	p := e.createProduct(ctx, t, alice.ID, xss, xss, 100, 1)
+	e.publishProduct(ctx, t, alice.ID, p.ID)
+
+	for _, path := range []string{"/", fmt.Sprintf("/shop/%d", p.ID)} {
+		rec := e.do(http.MethodGet, "alice.mall1.test", path, nil)
+		if strings.Contains(rec.Body.String(), "<script>") {
+			t.Errorf("GET %s: XSS not escaped", path)
+		}
+	}
+}
+
+func TestStorefrontSearchWithSpecialChars(t *testing.T) {
+	e := newEnv(t, testConfig())
+	e.mall("mall1.test")
+	e.setup("mall1.test", "alice", "owner@example.com")
+
+	// ILIKE special chars in search should not cause errors
+	rec := e.do(http.MethodGet, "alice.mall1.test", "/?q=100%25+off", nil)
+	wantStatus(t, rec, http.StatusOK)
+	rec = e.do(http.MethodGet, "alice.mall1.test", "/?q=_sale_", nil)
+	wantStatus(t, rec, http.StatusOK)
+}
+
+func TestAdminProductInvalidPrice(t *testing.T) {
+	e := newEnv(t, testConfig())
+	e.mall("mall1.test")
+	cookie := e.setup("mall1.test", "alice", "owner@example.com")
+	host := "alice.mall1.test"
+
+	bad := url.Values{"name": {"Widget"}, "price": {"not-a-price"}, "stock": {"1"}}
+	rec := e.do(http.MethodPost, host, "/admin/products/new", bad, cookie)
+	wantStatus(t, rec, http.StatusBadRequest)
+}
+
+func TestAdminStatusChangeIsTenantBound(t *testing.T) {
+	e := newEnv(t, testConfig())
+	e.mall("mall1.test")
+	aliceCookie := e.setup("mall1.test", "alice", "owner@example.com")
+	bobCookie := e.setup("mall1.test", "bob", "bob@example.com")
+	ctx := context.Background()
+	m, _ := e.st.MallByDomain(ctx, "mall1.test")
+	bob, _ := e.st.TenantBySubdomain(ctx, m.ID, "bob")
+
+	bobProd := e.createProduct(ctx, t, bob.ID, "BobItem", "", 100, 1)
+
+	// Alice cannot change status on Bob's product
+	rec := e.do(http.MethodPost, "alice.mall1.test",
+		fmt.Sprintf("/admin/products/%d/status", bobProd.ID),
+		url.Values{"status": {"published"}}, aliceCookie)
+	// 404 because the product doesn't exist in alice's tenant scope
+	wantStatus(t, rec, http.StatusNotFound)
+
+	// Bob's product stays draft
+	p, _ := e.st.GetProductAdmin(ctx, bob.ID, bobProd.ID)
+	if p.Status != store.ProductDraft {
+		t.Errorf("bob's product status changed by alice: %q", p.Status)
+	}
+	_ = bobCookie
 }

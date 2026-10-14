@@ -1,0 +1,48 @@
+{{define "admin_product_form"}}{{template "head" .}}
+<h1>{{.Shop}}</h1>
+<p><small>Signed in as {{.UserEmail}} ({{.Role}}) &mdash; <a href="/admin">Dashboard</a></small></p>
+<nav>
+  <a href="/admin/products"><b>Products</b></a>
+  <a href="/admin/categories">Categories</a>
+  {{if eq .Role "owner"}}<a href="/admin/settings">Settings</a>{{end}}
+  <form method="post" action="/admin/logout" style="display:inline;margin:0"><button class="inline-btn" type="submit">Log out</button></form>
+</nav>
+<h2>{{if .IsEdit}}Edit{{else}}New{{end}} Product</h2>
+{{if .Error}}<p class="err">{{.Error}}</p>{{end}}
+{{if .IsEdit}}
+<p style="font-size:.875rem">
+  Status: <span class="badge badge-{{.FormProduct.Status}}">{{.FormProduct.Status}}</span>
+  &mdash;
+  {{if ne .FormProduct.Status "published"}}<form method="post" action="/admin/products/{{.FormProduct.ID}}/status" style="display:inline;margin:0"><input type="hidden" name="status" value="published"><button type="submit" class="inline-btn">Publish</button></form>{{end}}
+  {{if ne .FormProduct.Status "draft"}}<form method="post" action="/admin/products/{{.FormProduct.ID}}/status" style="display:inline;margin:0"><input type="hidden" name="status" value="draft"><button type="submit" class="inline-btn">Set Draft</button></form>{{end}}
+  {{if ne .FormProduct.Status "archived"}}<form method="post" action="/admin/products/{{.FormProduct.ID}}/status" style="display:inline;margin:0"><input type="hidden" name="status" value="archived"><button type="submit" class="inline-btn">Archive</button></form>{{end}}
+</p>
+{{end}}
+<form method="post" action="{{if .IsEdit}}/admin/products/{{.FormProduct.ID}}{{else}}/admin/products/new{{end}}">
+<label for="f-name">Name <small>(required, max 120 characters)</small></label>
+<input id="f-name" name="name" type="text" value="{{.FormProduct.Name}}" required maxlength="120" autofocus>
+
+<label for="f-desc">Description <small>(max 2000 characters)</small></label>
+<textarea id="f-desc" name="description" rows="6" maxlength="2000">{{.FormProduct.Description}}</textarea>
+
+<div class="form-row">
+  <div>
+    <label for="f-price">Price ({{.Currency}})</label>
+    <input id="f-price" name="price" type="text" inputmode="decimal" value="{{if .IsEdit}}{{formatPrice .FormProduct.PriceMinor .Currency}}{{end}}" required maxlength="20" placeholder="0.00">
+  </div>
+  <div>
+    <label for="f-stock">Stock</label>
+    <input id="f-stock" name="stock" type="number" value="{{if .IsEdit}}{{.FormProduct.Stock}}{{else}}0{{end}}" min="0" max="999999" required>
+  </div>
+</div>
+
+<label for="f-cat">Category</label>
+<select id="f-cat" name="category_id">
+  <option value="">— Uncategorised —</option>
+  {{range .FormCats}}<option value="{{.ID}}"{{if catSelected $.FormProduct .ID}} selected{{end}}>{{.Name}}</option>{{end}}
+</select>
+
+<button type="submit">{{if .IsEdit}}Save changes{{else}}Create product{{end}}</button>
+{{if .IsEdit}}<p style="margin-top:.5rem;font-size:.85rem"><a href="/admin/products">← Back to products</a></p>{{end}}
+</form>
+{{template "foot" .}}{{end}}
