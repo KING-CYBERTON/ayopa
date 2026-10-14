@@ -28,11 +28,14 @@ const (
 const mallLockID int64 = 7263542
 
 type Mall struct {
-	ID       int64
-	Domain   string
-	Name     string
-	Status   string
-	Reserved []string
+	ID           int64
+	Domain       string
+	Name         string
+	Status       string
+	Reserved     []string
+	Tagline      string
+	Description  string
+	ContactEmail string
 }
 
 type Tenant struct {
@@ -82,11 +85,12 @@ func isUniqueViolation(err error) bool {
 
 // ---- malls ----
 
-const mallColumns = `id, domain, name, status, reserved`
+const mallColumns = `id, domain, name, status, reserved, tagline, description, contact_email`
 
 func scanMall(row pgx.Row) (Mall, error) {
 	var m Mall
-	err := row.Scan(&m.ID, &m.Domain, &m.Name, &m.Status, &m.Reserved)
+	err := row.Scan(&m.ID, &m.Domain, &m.Name, &m.Status, &m.Reserved,
+		&m.Tagline, &m.Description, &m.ContactEmail)
 	return m, err
 }
 
@@ -187,6 +191,19 @@ func (s *Store) CreateMall(ctx context.Context, domain, name string, reserved []
 
 func (s *Store) SetMallStatus(ctx context.Context, domain, status string) error {
 	tag, err := s.pool.Exec(ctx, `UPDATE malls SET status = $2 WHERE domain = $1`, domain, status)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (s *Store) SetMallContent(ctx context.Context, domain, tagline, description, contact string) error {
+	tag, err := s.pool.Exec(ctx,
+		`UPDATE malls SET tagline = $2, description = $3, contact_email = $4 WHERE domain = $1`,
+		domain, tagline, description, contact)
 	if err != nil {
 		return err
 	}

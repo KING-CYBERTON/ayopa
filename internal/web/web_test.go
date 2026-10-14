@@ -591,6 +591,127 @@ func TestCSRFRejectsForeignOrigin(t *testing.T) {
 	}
 }
 
+func TestLandingDefaultRender(t *testing.T) {
+	e := newEnv(t, testConfig())
+	e.mall("mall1.test")
+	e.shop("mall1.test", "alpha", "a@example.com")
+
+	rec := e.do(http.MethodGet, "mall1.test", "/", nil)
+	wantStatus(t, rec, http.StatusOK)
+	body := rec.Body.String()
+
+	if !strings.Contains(body, "Mall mall1.test") {
+		t.Error("landing page missing mall name")
+	}
+	if !strings.Contains(body, `id="shops"`) {
+		t.Error("landing page missing #shops anchor")
+	}
+	if !strings.Contains(body, "Shop alpha") {
+		t.Error("landing page missing shop name")
+	}
+	if !strings.Contains(body, "alpha.mall1.test") {
+		t.Error("landing page missing shop host")
+	}
+	if strings.Contains(body, "mailto:") {
+		t.Error("landing page shows mailto with no contact set")
+	}
+}
+
+func TestLandingWithContent(t *testing.T) {
+	e := newEnv(t, testConfig())
+	e.mall("mall1.test")
+	ctx := context.Background()
+
+	if err := provision.SetMallContent(ctx, e.st, "mall1.test",
+		"Great deals every day", "We bring the best shops together.", "hello@mall1.test"); err != nil {
+		t.Fatalf("SetMallContent: %v", err)
+	}
+
+	rec := e.do(http.MethodGet, "mall1.test", "/", nil)
+	wantStatus(t, rec, http.StatusOK)
+	body := rec.Body.String()
+
+	for _, want := range []string{
+		"Great deals every day",
+		"We bring the best shops together.",
+		"mailto:hello@mall1.test",
+		"hello@mall1.test",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("landing page missing %q", want)
+		}
+	}
+}
+
+func TestLandingXSSEscaping(t *testing.T) {
+	e := newEnv(t, testConfig())
+	e.mall("mall1.test")
+	ctx := context.Background()
+
+	xss := "<script>alert(1)</script>"
+	if err := provision.SetMallContent(ctx, e.st, "mall1.test", xss, xss, ""); err != nil {
+		t.Fatalf("SetMallContent: %v", err)
+	}
+
+	rec := e.do(http.MethodGet, "mall1.test", "/", nil)
+	body := rec.Body.String()
+	if strings.Contains(body, "<script>") {
+		t.Error("landing page did not escape <script> in tagline/description")
+	}
+}
+
+func TestLandingEmptyMall(t *testing.T) {
+	e := newEnv(t, testConfig())
+	e.mall("mall1.test")
+
+	rec := e.do(http.MethodGet, "mall1.test", "/", nil)
+	wantStatus(t, rec, http.StatusOK)
+	body := rec.Body.String()
+	if !strings.Contains(body, "Opening soon") {
+		t.Error("empty mall landing page missing opening-soon message")
+	}
+}
+
+func TestLandingValidation(t *testing.T) {
+	e := newEnv(t, testConfig())
+	e.mall("mall1.test")
+	ctx := context.Background()
+	set := func(tagline, description, contact string) error {
+		return provision.SetMallContent(ctx, e.st, "mall1.test", tagline, description, contact)
+	}
+
+	longTagline := strings.Repeat("a", 141)
+	if err := set(longTagline, "", ""); !errors.Is(err, provision.ErrInvalidContent) {
+		t.Errorf("tagline too long: got %v, want ErrInvalidContent", err)
+	}
+
+	longDesc := strings.Repeat("a", 601)
+	if err := set("", longDesc, ""); !errors.Is(err, provision.ErrInvalidContent) {
+		t.Errorf("description too long: got %v, want ErrInvalidContent", err)
+	}
+
+	if err := set("", "", "not-an-email"); !errors.Is(err, provision.ErrInvalidEmail) {
+		t.Errorf("invalid contact: got %v, want ErrInvalidEmail", err)
+	}
+
+	if err := provision.SetMallContent(ctx, e.st, "nobody.test", "", "", ""); !errors.Is(err, store.ErrNotFound) {
+		t.Errorf("unknown mall: got %v, want ErrNotFound", err)
+	}
+}
+
+func TestLandingCSPHeader(t *testing.T) {
+	e := newEnv(t, testConfig())
+	e.mall("mall1.test")
+
+	rec := e.do(http.MethodGet, "mall1.test", "/", nil)
+	wantStatus(t, rec, http.StatusOK)
+	got := rec.Header().Get("Content-Security-Policy")
+	want := "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'"
+	if got != want {
+		t.Errorf("CSP = %q, want %q", got, want)
+	}
+}
+
 func TestLoginIsRateLimited(t *testing.T) {
 	cfg := testConfig()
 	cfg.LoginLimit = 2

@@ -29,6 +29,7 @@ const usage = `usage: server [command] [flags]
   create-invite       -mall D -subdomain S -email EMAIL [-role owner|staff]
   set-tenant-status   -mall D -subdomain S -status active|suspended
   set-mall-status     -mall D -status active|suspended
+  set-mall-content    -mall D [-tagline T] [-description D] [-contact EMAIL]
   list                show malls and shops
 `
 
@@ -47,7 +48,7 @@ func main() {
 	case "migrate":
 		os.Exit(runMigrate(logger))
 	case "create-mall", "create-tenant", "create-invite",
-		"set-tenant-status", "set-mall-status", "list":
+		"set-tenant-status", "set-mall-status", "set-mall-content", "list":
 		os.Exit(runAdmin(cmd, args))
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command %q\n\n%s", cmd, usage)
