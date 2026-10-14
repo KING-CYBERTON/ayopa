@@ -26,8 +26,8 @@ func TestParse(t *testing.T) {
 		{"-1", 2, 0, true},
 		{"99.", 2, 0, true},
 		{"abc", 2, 0, true},
-		{"1.234", 2, 0, true},  // too many dp
-		{"100.5", 0, 0, true},  // currency has no dp
+		{"1.234", 2, 0, true}, // too many dp
+		{"100.5", 0, 0, true}, // currency has no dp
 	}
 	for _, c := range cases {
 		got, err := money.Parse(c.in, c.exp)
