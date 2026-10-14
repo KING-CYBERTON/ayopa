@@ -1,0 +1,16 @@
+{{define "setup"}}{{template "head" .}}
+<h1>Set up {{.Shop}}</h1>
+{{if .Error}}<p class="err">{{.Error}}</p>{{end}}
+{{if .Token}}
+<p>Choose a password for <b>{{.Email}}</b>.</p>
+<form method="post" action="/admin/setup">
+<input type="hidden" name="token" value="{{.Token}}">
+<label for="password">Password</label>
+<input id="password" name="password" type="password" required minlength="10" maxlength="128" autocomplete="new-password">
+<small>At least 10 characters.</small>
+<label for="confirm">Repeat password</label>
+<input id="confirm" name="confirm" type="password" required minlength="10" maxlength="128" autocomplete="new-password">
+<button type="submit">Save and continue</button>
+</form>
+{{end}}
+{{template "foot" .}}{{end}}

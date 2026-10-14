@@ -2,18 +2,117 @@ package web
 
 import (
 	"context"
+	"embed"
 	"errors"
 	"fmt"
 	"html/template"
 	"log/slog"
 	"net"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
+	"github.com/KING-CYBERTON/ayopa/internal/catalog"
+	"github.com/KING-CYBERTON/ayopa/internal/money"
 	"github.com/KING-CYBERTON/ayopa/internal/store"
 	"github.com/KING-CYBERTON/ayopa/internal/tenant"
 )
+
+//go:embed templates
+var templateFS embed.FS
+
+var templateFuncs = template.FuncMap{
+	"formatMoney": money.FormatCurrency,
+	"formatPrice": func(minor int64, currency string) string {
+		return money.Format(minor, money.ExponentFor(currency))
+	},
+	"placeholderColor": func(id int64) string {
+		palette := [8]string{
+			"#1a5fa8", "#d44000", "#2e7d32", "#6a1b9a",
+			"#0277bd", "#c62828", "#37474f", "#558b2f",
+		}
+		idx := id % 8
+		if idx < 0 {
+			idx += 8
+		}
+		return palette[idx]
+	},
+	"initial": func(name string) string {
+		for _, r := range name {
+			return string([]rune{r})
+		}
+		return "•"
+	},
+	"queryPage": func(q catalog.ListQuery, page int) string {
+		qs := q.QueryStringForPage(page)
+		if qs == "" {
+			return "/"
+		}
+		return "/?" + qs
+	},
+	"querySort": func(q catalog.ListQuery, sortKey string) string {
+		q2 := q
+		q2.Sort = catalog.Sort(sortKey)
+		q2.Page = 1
+		qs := q2.QueryStringForPage(1)
+		if qs == "" {
+			return "/"
+		}
+		return "/?" + qs
+	},
+	"paginate": func(current, last int) []int {
+		if last <= 1 {
+			return nil
+		}
+		if last <= 9 {
+			out := make([]int, last)
+			for i := range out {
+				out[i] = i + 1
+			}
+			return out
+		}
+		set := map[int]bool{1: true, last: true}
+		for _, p := range []int{current - 2, current - 1, current, current + 1, current + 2} {
+			if p >= 1 && p <= last {
+				set[p] = true
+			}
+		}
+		var pages []int
+		for p := 1; p <= last; p++ {
+			if set[p] {
+				pages = append(pages, p)
+			}
+		}
+		sort.Ints(pages)
+		var out []int
+		for i, p := range pages {
+			if i > 0 && p > pages[i-1]+1 {
+				out = append(out, 0)
+			}
+			out = append(out, p)
+		}
+		return out
+	},
+	"currencies": func() []string {
+		return []string{"KES", "UGX", "TZS", "RWF", "ETB", "NGN", "ZAR", "USD"}
+	},
+	"catSelected": func(p store.Product, catID int64) bool {
+		return p.CategoryID != nil && *p.CategoryID == catID
+	},
+	"adminPageQS": func(status string, page int) string {
+		v := ""
+		if status != "" {
+			v += "status=" + status + "&"
+		}
+		if page > 1 {
+			v += fmt.Sprintf("page=%d", page)
+		}
+		return strings.TrimRight(v, "&")
+	},
+	"add": func(a, b int) int { return a + b },
+	"sub": func(a, b int) int { return a - b },
+}
 
 type ctxKey string
 
@@ -42,10 +141,12 @@ type Server struct {
 
 func New(cfg Config, st *store.Store, log *slog.Logger) *Server {
 	s := &Server{
-		cfg:       cfg,
-		store:     st,
-		log:       log,
-		tpl:       template.Must(template.New("page").Parse(pageTemplates)),
+		cfg:   cfg,
+		store: st,
+		log:   log,
+		tpl: template.Must(
+			template.New("").Funcs(templateFuncs).ParseFS(templateFS, "templates/*.html"),
+		),
 		mallMux:   http.NewServeMux(),
 		tenantMux: http.NewServeMux(),
 		loginRL:   newLimiter(cfg.LoginLimit, cfg.LoginWindow),
@@ -61,7 +162,11 @@ func (s *Server) Handler() http.Handler {
 func (s *Server) routes() {
 	s.mallMux.HandleFunc("GET /{$}", s.showDirectory)
 
+	// storefront (public)
 	s.tenantMux.HandleFunc("GET /{$}", s.showStorefront)
+	s.tenantMux.HandleFunc("GET /shop/{id}", s.showProduct)
+
+	// admin auth
 	s.tenantMux.HandleFunc("GET /admin", s.showDashboard)
 	s.tenantMux.HandleFunc("GET /admin/login", s.showLogin)
 	s.tenantMux.HandleFunc("POST /admin/login", s.handleLogin)
@@ -69,6 +174,25 @@ func (s *Server) routes() {
 	s.tenantMux.HandleFunc("GET /admin/setup", s.showSetup)
 	s.tenantMux.HandleFunc("POST /admin/setup", s.handleSetup)
 	s.tenantMux.HandleFunc("POST /admin/notes", s.handleAddNote)
+
+	// admin settings
+	s.tenantMux.HandleFunc("GET /admin/settings", s.showSettings)
+	s.tenantMux.HandleFunc("POST /admin/settings", s.handleSettings)
+
+	// admin categories
+	s.tenantMux.HandleFunc("GET /admin/categories", s.showCategories)
+	s.tenantMux.HandleFunc("POST /admin/categories", s.handleCreateCategory)
+	s.tenantMux.HandleFunc("POST /admin/categories/{id}/rename", s.handleRenameCategory)
+	s.tenantMux.HandleFunc("POST /admin/categories/{id}/delete", s.handleDeleteCategory)
+
+	// admin products
+	s.tenantMux.HandleFunc("GET /admin/products", s.showProducts)
+	s.tenantMux.HandleFunc("GET /admin/products/new", s.showNewProduct)
+	s.tenantMux.HandleFunc("POST /admin/products/new", s.handleCreateProduct)
+	s.tenantMux.HandleFunc("GET /admin/products/{id}", s.showEditProduct)
+	s.tenantMux.HandleFunc("POST /admin/products/{id}", s.handleUpdateProduct)
+	s.tenantMux.HandleFunc("POST /admin/products/{id}/status", s.handleSetProductStatus)
+	s.tenantMux.HandleFunc("POST /admin/products/{id}/featured", s.handleSetProductFeatured)
 }
 
 // resolveHost works out which mall and shop a request is for.

@@ -3,12 +3,15 @@ package web
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
 	"unicode/utf8"
 
 	"github.com/KING-CYBERTON/ayopa/internal/auth"
+	"github.com/KING-CYBERTON/ayopa/internal/catalog"
+	"github.com/KING-CYBERTON/ayopa/internal/money"
 	"github.com/KING-CYBERTON/ayopa/internal/store"
 )
 
@@ -21,20 +24,52 @@ type shopLink struct {
 }
 
 type pageData struct {
-	Title       string
-	Error       string
-	Notice      string
-	MallName    string
-	Shop        string
-	Email       string
-	UserEmail   string
-	Role        string
-	Token       string
+	Title    string
+	Error    string
+	Notice   string
+	MallName string
+	Shop     string
+	Email    string
+
+	// auth/admin
+	UserEmail string
+	Role      string
+	Token     string
+
+	// mall landing
 	Tagline     string
 	Description string
 	Contact     string
 	Shops       []shopLink
 	Notes       []store.Note
+
+	// storefront
+	Noindex      bool
+	MetaDesc     string
+	Currency     string
+	Phone        string
+	Address      string
+	OpeningHours string
+	Categories   []store.Category
+	Products     []store.Product
+	Featured     []store.Product
+	Total        int
+	LastPage     int
+	Query        catalog.ListQuery
+
+	// product detail
+	Product store.Product
+
+	// admin
+	Profile       store.TenantProfile
+	AdminPage     int
+	AdminStatus   string
+	AdminProducts []store.Product
+	AdminTotal    int
+	AdminLastPage int
+	FormProduct   store.Product
+	FormCats      []store.Category
+	IsEdit        bool
 }
 
 func (s *Server) page(r *http.Request, title string) pageData {
@@ -91,7 +126,99 @@ func (s *Server) showDirectory(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) showStorefront(w http.ResponseWriter, r *http.Request) {
 	t := tenantFrom(r.Context())
-	s.render(w, http.StatusOK, "storefront", s.page(r, t.Name))
+	profile, err := s.store.TenantProfileByID(r.Context(), t.ID)
+	if err != nil {
+		s.serverError(w, "shop profile", err)
+		return
+	}
+
+	q := catalog.ParseListQuery(r.URL.Query(), t.Currency)
+
+	cats, err := s.store.ListCategoriesWithCounts(r.Context(), t.ID)
+	if err != nil {
+		s.serverError(w, "list categories", err)
+		return
+	}
+
+	products, total, err := s.store.ListProducts(r.Context(), t.ID, q)
+	if err != nil {
+		s.serverError(w, "list products", err)
+		return
+	}
+
+	lastPage := 1
+	if total > 0 {
+		lastPage = (total + catalog.PageSize - 1) / catalog.PageSize
+	}
+	if q.Page > lastPage {
+		q.Page = lastPage
+	}
+
+	var featured []store.Product
+	if !q.IsFiltered() {
+		featured, err = s.store.FeaturedProducts(r.Context(), t.ID, 4)
+		if err != nil {
+			s.serverError(w, "featured products", err)
+			return
+		}
+	}
+
+	pg := s.page(r, t.Name)
+	pg.Tagline = profile.Tagline
+	pg.Description = profile.Description
+	pg.Contact = profile.ContactEmail
+	pg.Phone = profile.Phone
+	pg.Address = profile.Address
+	pg.OpeningHours = profile.OpeningHours
+	pg.Currency = t.Currency
+	pg.Categories = cats
+	pg.Products = products
+	pg.Featured = featured
+	pg.Total = total
+	pg.LastPage = lastPage
+	pg.Query = q
+	pg.Noindex = q.IsFiltered()
+	if profile.Tagline != "" {
+		pg.MetaDesc = profile.Tagline
+	} else if profile.Description != "" {
+		runes := []rune(profile.Description)
+		if len(runes) > 160 {
+			runes = runes[:160]
+		}
+		pg.MetaDesc = string(runes)
+	}
+	s.render(w, http.StatusOK, "storefront", pg)
+}
+
+func (s *Server) showProduct(w http.ResponseWriter, r *http.Request) {
+	t := tenantFrom(r.Context())
+	var id int64
+	if _, err := fmt.Sscan(r.PathValue("id"), &id); err != nil || id <= 0 {
+		http.NotFound(w, r)
+		return
+	}
+	product, err := s.store.GetPublishedProduct(r.Context(), t.ID, id)
+	if errors.Is(err, store.ErrNotFound) {
+		http.NotFound(w, r)
+		return
+	}
+	if err != nil {
+		s.serverError(w, "get product", err)
+		return
+	}
+
+	pg := s.page(r, product.Name+" – "+t.Name)
+	pg.Product = product
+	pg.Currency = t.Currency
+	pg.MetaDesc = product.Name
+	if product.Description != "" {
+		runes := []rune(product.Description)
+		if len(runes) > 160 {
+			runes = runes[:160]
+		}
+		pg.MetaDesc = string(runes)
+	}
+	s.render(w, http.StatusOK, "product", pg)
 }
 
 func (s *Server) currentUser(r *http.Request) (store.User, bool) {
@@ -316,4 +443,10 @@ func (s *Server) handleAddNote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/admin", http.StatusSeeOther)
+}
+
+// parseMoney parses a decimal price string for the given currency into minor units.
+func parseMoney(s, currency string) (int64, error) {
+	s = strings.TrimSpace(s)
+	return money.Parse(s, money.ExponentFor(currency))
 }

@@ -1,0 +1,43 @@
+{{define "admin_categories"}}{{template "head" .}}
+<h1>{{.Shop}}</h1>
+<p><small>Signed in as {{.UserEmail}} ({{.Role}}) &mdash; <a href="/admin">Dashboard</a></small></p>
+<nav>
+  <a href="/admin/products">Products</a>
+  <a href="/admin/categories"><b>Categories</b></a>
+  {{if eq .Role "owner"}}<a href="/admin/settings">Settings</a>{{end}}
+  <form method="post" action="/admin/logout" style="display:inline;margin:0"><button class="inline-btn" type="submit">Log out</button></form>
+</nav>
+<h2>Categories</h2>
+{{if .Error}}<p class="err">{{.Error}}</p>{{end}}
+{{if .Notice}}<p class="ok">{{.Notice}}</p>{{end}}
+<form method="post" action="/admin/categories">
+  <div class="form-row">
+    <input id="name" name="name" type="text" placeholder="New category name" required maxlength="60">
+    <button type="submit" style="margin-top:0;width:auto;padding:.5rem 1rem">Add</button>
+  </div>
+</form>
+{{if .Categories}}
+<table>
+  <thead><tr><th>Name</th><th>Slug</th><th>Products</th><th>Actions</th></tr></thead>
+  <tbody>
+  {{range .Categories}}
+  <tr>
+    <td>{{.Name}}</td>
+    <td><code>{{.Slug}}</code></td>
+    <td>{{.Count}}</td>
+    <td class="actions">
+      <form method="post" action="/admin/categories/{{.ID}}/rename">
+        <input name="name" type="text" value="{{.Name}}" required maxlength="60" style="width:10rem;display:inline;padding:.25rem">
+        <button type="submit" style="margin:0;padding:.25rem .5rem;width:auto;font-size:.8rem">Rename</button>
+      </form>
+      <form method="post" action="/admin/categories/{{.ID}}/delete">
+        <button type="submit" style="margin:0;padding:.25rem .5rem;width:auto;font-size:.8rem;background:#b00020;color:#fff;border:none;border-radius:.2rem;cursor:pointer"
+          onclick="return confirm('Delete category {{.Name}}? Products will become uncategorised.')">Delete</button>
+      </form>
+    </td>
+  </tr>
+  {{end}}
+  </tbody>
+</table>
+{{else}}<p><small>No categories yet.</small></p>{{end}}
+{{template "foot" .}}{{end}}
