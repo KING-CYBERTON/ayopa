@@ -47,6 +47,8 @@ func runAdmin(name string, args []string) int {
 		err = setTenantStatus(ctx, st, args)
 	case "set-mall-status":
 		err = setMallStatus(ctx, st, args)
+	case "set-mall-content":
+		err = setMallContent(ctx, st, args)
 	case "list":
 		err = listAll(ctx, st)
 	default:
@@ -192,6 +194,48 @@ func setMallStatus(ctx context.Context, st *store.Store, args []string) error {
 		return err
 	}
 	fmt.Printf("%s is now %s.\n", tenant.NormalizeDomain(*mall), *status)
+	return nil
+}
+
+func setMallContent(ctx context.Context, st *store.Store, args []string) error {
+	fs := newFlags("set-mall-content")
+	mall := fs.String("mall", "", "mall domain")
+	tagline := fs.String("tagline", "", "short tagline, up to 140 characters")
+	description := fs.String("description", "", "body copy, up to 600 characters")
+	contact := fs.String("contact", "", "contact email shown on landing page (leave empty to clear)")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if err := require([2]string{"mall", *mall}); err != nil {
+		return err
+	}
+
+	// Read current values so unset flags keep existing content.
+	domain := tenant.NormalizeDomain(*mall)
+	m, err := st.MallByDomain(ctx, domain)
+	if err != nil {
+		return fmt.Errorf("mall %q: %w", domain, err)
+	}
+
+	newTagline := m.Tagline
+	newDesc := m.Description
+	newContact := m.ContactEmail
+
+	fs.Visit(func(f *flag.Flag) {
+		switch f.Name {
+		case "tagline":
+			newTagline = *tagline
+		case "description":
+			newDesc = *description
+		case "contact":
+			newContact = *contact
+		}
+	})
+
+	if err := provision.SetMallContent(ctx, st, domain, newTagline, newDesc, newContact); err != nil {
+		return err
+	}
+	fmt.Printf("Landing page content updated for %s.\n", domain)
 	return nil
 }
 

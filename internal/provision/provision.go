@@ -18,11 +18,12 @@ import (
 )
 
 var (
-	ErrInvalidEmail  = errors.New("invalid email address")
-	ErrInvalidName   = errors.New("name must be 1 to 80 characters")
-	ErrInvalidRole   = errors.New("role must be owner or staff")
-	ErrInvalidStatus = errors.New("status must be active or suspended")
-	ErrUserExists    = errors.New("a user with that email already exists in this shop")
+	ErrInvalidEmail   = errors.New("invalid email address")
+	ErrInvalidName    = errors.New("name must be 1 to 80 characters")
+	ErrInvalidRole    = errors.New("role must be owner or staff")
+	ErrInvalidStatus  = errors.New("status must be active or suspended")
+	ErrInvalidContent = errors.New("content too long")
+	ErrUserExists     = errors.New("a user with that email already exists in this shop")
 )
 
 func ValidEmail(e string) bool {
@@ -156,6 +157,22 @@ func SetMallStatus(ctx context.Context, st *store.Store, mallDomain, status stri
 		return ErrInvalidStatus
 	}
 	return st.SetMallStatus(ctx, tenant.NormalizeDomain(mallDomain), status)
+}
+
+func SetMallContent(ctx context.Context, st *store.Store, mallDomain, tagline, description, contact string) error {
+	tagline = strings.TrimSpace(tagline)
+	description = strings.TrimSpace(description)
+	contact = normalizeEmail(contact)
+	if utf8.RuneCountInString(tagline) > 140 {
+		return ErrInvalidContent
+	}
+	if utf8.RuneCountInString(description) > 600 {
+		return ErrInvalidContent
+	}
+	if contact != "" && !ValidEmail(contact) {
+		return ErrInvalidEmail
+	}
+	return st.SetMallContent(ctx, tenant.NormalizeDomain(mallDomain), tagline, description, contact)
 }
 
 func SetupURL(scheme, port, mallDomain, subdomain, token string) string {

@@ -369,6 +369,7 @@ flowchart LR
 | Rotate the Cloudflare token | Roll it in Cloudflare, `aws ssm put-parameter --overwrite`, then redeploy. Update the token's IP allowlist if it has one |
 | Certificates | Issued and renewed automatically by Caddy, stored in the `caddy_data` volume |
 | Reserve a new name | Add it to `internal/tenant/validate.go` whenever you create a DNS record for it |
+| Edit mall landing page | `server set-mall-content -mall D [-tagline T] [-description D] [-contact EMAIL]` — see `docs/runbooks/operations.md` |
 | Tear down | `terraform destroy`, then remove the state bucket and the SSM parameters |
 
 Do not paste logs or `docker compose config` output anywhere public without

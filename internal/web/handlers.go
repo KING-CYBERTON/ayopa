@@ -17,20 +17,24 @@ const invalidLinkMsg = "This setup link is invalid or has expired. Ask your mall
 type shopLink struct {
 	Name string
 	URL  string
+	Host string
 }
 
 type pageData struct {
-	Title     string
-	Error     string
-	Notice    string
-	MallName  string
-	Shop      string
-	Email     string
-	UserEmail string
-	Role      string
-	Token     string
-	Shops     []shopLink
-	Notes     []store.Note
+	Title       string
+	Error       string
+	Notice      string
+	MallName    string
+	Shop        string
+	Email       string
+	UserEmail   string
+	Role        string
+	Token       string
+	Tagline     string
+	Description string
+	Contact     string
+	Shops       []shopLink
+	Notes       []store.Note
 }
 
 func (s *Server) page(r *http.Request, title string) pageData {
@@ -69,10 +73,18 @@ func (s *Server) showDirectory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	page := s.page(r, m.Name)
+	page.Tagline = m.Tagline
+	page.Description = m.Description
+	page.Contact = m.ContactEmail
 	for _, t := range shops {
-		page.Shops = append(page.Shops, shopLink{Name: t.Name, URL: s.shopURL(m, t.Subdomain, "/")})
+		shopURL := s.shopURL(m, t.Subdomain, "/")
+		page.Shops = append(page.Shops, shopLink{
+			Name: t.Name,
+			URL:  shopURL,
+			Host: t.Subdomain + "." + m.Domain,
+		})
 	}
-	s.render(w, http.StatusOK, "directory", page)
+	s.render(w, http.StatusOK, "landing", page)
 }
 
 // ---- shop site ----
