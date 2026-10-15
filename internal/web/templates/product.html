@@ -3,25 +3,39 @@
 <nav class="site-nav">
   <a href="/" class="brand">{{.Shop}}</a>
   <div class="nav-links">
-    <a href="/">All products</a>
+    <a href="/">&#8592; All products</a>
+    <a href="/admin/login" style="opacity:.45;font-size:.8rem;margin-left:.25rem">Admin</a>
   </div>
 </nav>
 <main>
 <div class="product-detail">
-  <p class="detail-cat"><a href="/">← Back to shop</a>{{if .Product.CategoryName}} &middot; {{.Product.CategoryName}}{{end}}</p>
-  <h1>{{.Product.Name}}</h1>
-  <div class="detail-price">{{formatMoney .Product.PriceMinor .Currency}}</div>
-  <div class="detail-meta">
-    {{if .Product.CategoryName}}<span>Category: {{.Product.CategoryName}}</span>{{end}}
+  <div class="detail-breadcrumb">
+    <a href="/">{{.Shop}}</a>
+    {{if .Product.CategoryName}}<span class="sep">&#8250;</span><span>{{.Product.CategoryName}}</span>{{end}}
+    <span class="sep">&#8250;</span>
+    <span>{{.Product.Name}}</span>
   </div>
-  {{if gt .Product.Stock 0}}
-    {{if le .Product.Stock 5}}<p class="detail-stock">Only {{.Product.Stock}} left in stock</p>{{end}}
-  {{else}}<p class="detail-stock">Currently out of stock</p>{{end}}
-  {{if .Product.Description}}<div class="detail-desc">{{.Product.Description}}</div>{{end}}
-  <p class="add-cart-note">To order, contact the shop directly.</p>
+  <div class="detail-layout">
+    <div>
+      <div class="detail-image" style="background:{{placeholderColor .Product.ID}}">{{initial .Product.Name}}</div>
+    </div>
+    <div class="detail-info">
+      <h1>{{.Product.Name}}</h1>
+      <div class="detail-price">{{formatMoney .Product.PriceMinor .Currency}}</div>
+      {{if .Product.CategoryName}}
+      <div class="detail-meta"><span class="detail-badge">{{.Product.CategoryName}}</span></div>
+      {{end}}
+      {{if gt .Product.Stock 0}}
+        {{if le .Product.Stock 5}}<p class="detail-stock">Only {{.Product.Stock}} left in stock</p>
+        {{else}}<p class="detail-instock">In stock</p>{{end}}
+      {{else}}<p class="detail-stock">Currently out of stock</p>{{end}}
+      {{if .Product.Description}}<div class="detail-desc">{{.Product.Description}}</div>{{end}}
+      <div class="add-cart-note">To order this item, contact the shop directly.{{if .Contact}} Reach us at <a href="mailto:{{.Contact}}">{{.Contact}}</a>.{{end}}</div>
+    </div>
+  </div>
 </div>
 </main>
-<footer class="site-footer">{{.Shop}} &mdash; part of {{.MallName}}</footer>
+<footer class="site-footer">{{.Shop}} &mdash; part of <a href="/">{{.MallName}}</a></footer>
 </body>
 </html>
 {{end}}

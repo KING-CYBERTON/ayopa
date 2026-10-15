@@ -5,42 +5,109 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{.Title}}</title>
 <style>
-:root{--bg:#fff;--fg:#111;--muted:#555;--border:#e0e0e0;--accent:#1a5fa8;--card:#f5f7fb;--hero:#eef2fa}
-@media(prefers-color-scheme:dark){:root{--bg:#111;--fg:#f0f0f0;--muted:#999;--border:#2a2a2a;--accent:#6ba8e5;--card:#1a1a1a;--hero:#161a22}}
-*,*::before,*::after{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,sans-serif;line-height:1.6}
-a{color:var(--accent)}
-a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}
-.hero{background:var(--hero);padding:clamp(2.5rem,7vw,5.5rem) clamp(1rem,6vw,5rem);text-align:center}
-.hero h1{margin:0 0 .5rem;font-size:clamp(1.75rem,4vw + 1rem,3.5rem);font-weight:700;letter-spacing:-.02em}
-.hero .tagline{margin:.25rem 0 1rem;font-size:clamp(1rem,1.5vw + .4rem,1.35rem);color:var(--muted);font-style:italic}
-.hero .desc{max-width:54ch;margin:0 auto;font-size:clamp(.9rem,1vw + .35rem,1.05rem);white-space:pre-line}
-.shops{max-width:72rem;margin:0 auto;padding:clamp(2rem,4vw,3.5rem) clamp(1rem,5vw,4rem)}
-.shops h2{font-size:clamp(1.1rem,1.5vw + .5rem,1.4rem);margin:0 0 1.5rem;font-weight:600}
-.grid{display:grid;gap:1rem;grid-template-columns:repeat(auto-fill,minmax(min(100%,15rem),1fr));list-style:none;margin:0;padding:0}
-.card{background:var(--card);border:1px solid var(--border);border-radius:.5rem}
-.card a{display:block;padding:1.25rem 1.5rem;text-decoration:none;color:var(--fg);font-weight:600;font-size:clamp(.9rem,1vw + .35rem,1.1rem);border-radius:.5rem}
-.card a:hover{background:var(--border)}
-.card a:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
-.host{display:block;font-weight:400;font-size:.8em;color:var(--muted);margin-top:.2rem}
-.empty{color:var(--muted);padding:3rem 0;text-align:center;font-size:1.05rem}
-footer{border-top:1px solid var(--border);padding:1.5rem clamp(1rem,5vw,4rem);text-align:center;color:var(--muted);font-size:.85rem}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --p:#7C3AED;--pd:#5B21B6;--pl:#EDE9FE;
+  --g:#16A34A;--gd:#15803D;
+  --bg:#F8F7FF;--card:#fff;
+  --fg:#0F172A;--muted:#64748B;
+  --border:#E2E8F0;
+  --sh:0 1px 3px rgba(0,0,0,.07),0 4px 16px rgba(0,0,0,.05);
+  --sh2:0 6px 16px rgba(0,0,0,.1),0 16px 40px rgba(0,0,0,.08)
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#0D0B18;--card:#1B1830;
+  --fg:#F1F5F9;--muted:#94A3B8;
+  --border:#2E2A45;
+  --sh:0 1px 3px rgba(0,0,0,.5),0 4px 16px rgba(0,0,0,.35);
+  --sh2:0 6px 16px rgba(0,0,0,.6),0 16px 40px rgba(0,0,0,.5)
+}}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--fg);line-height:1.6;min-height:100vh;display:flex;flex-direction:column}
+main{flex:1}
+a{text-decoration:none;color:var(--p)}
+a:focus-visible{outline:2px solid var(--p);outline-offset:3px;border-radius:3px}
+
+/* Top nav */
+.top-nav{display:flex;align-items:center;justify-content:space-between;padding:.8rem clamp(1rem,5vw,4rem);background:var(--bg);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10;backdrop-filter:blur(8px)}
+.top-nav .brand{font-size:1.15rem;font-weight:800;color:var(--fg);letter-spacing:-.03em}
+.top-nav .brand em{color:var(--p);font-style:normal}
+.top-nav .nav-cta{background:var(--p);color:#fff;padding:.4rem 1.1rem;border-radius:100px;font-size:.85rem;font-weight:600;transition:background .15s,transform .1s}
+.top-nav .nav-cta:hover{background:var(--pd);transform:translateY(-1px)}
+
+/* Hero */
+.hero{background:linear-gradient(140deg,#4C1D95 0%,#7C3AED 45%,#6D28D9 100%);color:#fff;text-align:center;padding:clamp(3.5rem,10vw,8rem) clamp(1rem,6vw,5rem) clamp(3rem,8vw,6rem)}
+.hero h1{font-size:clamp(2.25rem,5vw+.5rem,5rem);font-weight:800;letter-spacing:-.04em;line-height:1.05;margin-bottom:1rem}
+.hero .tagline{font-size:clamp(1rem,2vw+.2rem,1.4rem);opacity:.88;font-style:italic;margin-bottom:.75rem;line-height:1.4}
+.hero .desc{font-size:clamp(.9rem,1.5vw+.1rem,1.1rem);opacity:.75;max-width:52ch;margin:.5rem auto 2.5rem;white-space:pre-line;line-height:1.6}
+.hero .cta-btn{display:inline-block;background:var(--g);color:#fff;padding:.8rem 2.25rem;border-radius:100px;font-size:1rem;font-weight:700;letter-spacing:.01em;transition:background .15s,transform .15s,box-shadow .15s;box-shadow:0 4px 16px rgba(21,128,61,.4)}
+.hero .cta-btn:hover{background:var(--gd);transform:translateY(-2px);box-shadow:0 8px 24px rgba(21,128,61,.45)}
+
+/* Shops section */
+.section{max-width:80rem;margin:0 auto;padding:clamp(2.5rem,6vw,5rem) clamp(1rem,5vw,3rem)}
+.section-hd{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:2rem;gap:1rem;flex-wrap:wrap}
+.section-hd h2{font-size:clamp(1.35rem,2.5vw+.25rem,2.25rem);font-weight:800;letter-spacing:-.03em}
+.section-hd .count{color:var(--muted);font-size:.875rem;font-weight:500}
+
+/* Shop cards grid */
+.shops-grid{display:grid;gap:1rem;grid-template-columns:repeat(auto-fill,minmax(min(100%,18rem),1fr));list-style:none}
+.shop-card{display:flex;align-items:center;gap:1.1rem;background:var(--card);border:1.5px solid var(--border);border-radius:.875rem;padding:1.1rem 1.25rem;transition:transform .18s,box-shadow .18s,border-color .18s;box-shadow:var(--sh);color:var(--fg)}
+.shop-card:hover{transform:translateY(-3px);box-shadow:var(--sh2);border-color:var(--pl);text-decoration:none}
+.shop-initial{width:3rem;height:3rem;border-radius:50%;background:linear-gradient(135deg,var(--p) 0%,var(--pd) 100%);color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.3rem;font-weight:800;flex-shrink:0;text-transform:uppercase;user-select:none}
+.shop-info-text{flex:1;min-width:0}
+.shop-name{font-weight:700;font-size:1rem;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.shop-host{font-size:.78rem;color:var(--muted);margin-top:.15rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:ui-monospace,'SF Mono','Cascadia Mono',monospace}
+.shop-arrow{color:var(--p);font-size:1.1rem;flex-shrink:0;opacity:.6;transition:opacity .15s,transform .15s}
+.shop-card:hover .shop-arrow{opacity:1;transform:translateX(3px)}
+
+/* Empty state */
+.empty{text-align:center;padding:5rem 1rem;color:var(--muted)}
+.empty-icon{width:4rem;height:4rem;border-radius:50%;background:var(--pl);display:inline-flex;align-items:center;justify-content:center;margin-bottom:1.5rem;font-size:1.75rem}
+.empty p{font-size:1.1rem;font-weight:500}
+
+/* Footer */
+footer{border-top:1px solid var(--border);padding:1.5rem clamp(1rem,5vw,3rem);text-align:center;color:var(--muted);font-size:.85rem;margin-top:auto}
 footer a{color:var(--muted)}
+footer a:hover{color:var(--p)}
+
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
 </style>
 </head>
 <body>
+<nav class="top-nav">
+  <a href="/" class="brand"><em>{{.MallName}}</em></a>
+  <a href="#shops" class="nav-cta">Browse shops</a>
+</nav>
 <header class="hero">
   <h1>{{.MallName}}</h1>
   {{if .Tagline}}<p class="tagline">{{.Tagline}}</p>{{end}}
   {{if .Description}}<p class="desc">{{.Description}}</p>{{end}}
+  <a href="#shops" class="cta-btn">Explore all shops</a>
 </header>
-<main class="shops">
-  <h2 id="shops">Shops</h2>
-  {{if .Shops}}<ul class="grid" aria-labelledby="shops">
-    {{range .Shops}}<li class="card"><a href="{{.URL}}">{{.Name}}<span class="host">{{.Host}}</span></a></li>
+<main class="section" id="shops">
+  <div class="section-hd">
+    <h2>{{if .Shops}}Our shops{{else}}Shops{{end}}</h2>
+    {{if .Shops}}<span class="count">{{len .Shops}} {{if eq (len .Shops) 1}}shop{{else}}shops{{end}}</span>{{end}}
+  </div>
+  {{if .Shops}}
+  <ul class="shops-grid" role="list">
+    {{range .Shops}}
+    <li>
+      <a href="{{.URL}}" class="shop-card">
+        <div class="shop-initial">{{initial .Name}}</div>
+        <div class="shop-info-text">
+          <div class="shop-name">{{.Name}}</div>
+          <div class="shop-host">{{.Host}}</div>
+        </div>
+        <span class="shop-arrow" aria-hidden="true">&#8594;</span>
+      </a>
+    </li>
     {{end}}
-  </ul>{{else}}<p class="empty">Opening soon &#8212; check back later.</p>{{end}}
+  </ul>
+  {{else}}
+  <div class="empty">
+    <p>Opening soon &mdash; check back later.</p>
+  </div>
+  {{end}}
 </main>
 {{if .Contact}}<footer><a href="mailto:{{.Contact}}">{{.Contact}}</a></footer>{{end}}
 </body>
