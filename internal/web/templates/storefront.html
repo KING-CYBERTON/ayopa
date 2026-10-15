@@ -4,13 +4,16 @@
   <a href="/" class="brand">{{.Shop}}</a>
   <div class="nav-links">
     {{range .Categories}}<a href="/?cat={{.Slug}}">{{.Name}}</a>{{end}}
-    <a href="/admin/login" style="opacity:.55;font-size:.8rem">Admin</a>
+    <a href="/admin/login" style="opacity:.45;font-size:.8rem;margin-left:.25rem">Admin</a>
   </div>
 </nav>
-<main>
+<header class="shop-hero">
+  <h1>{{.Shop}}</h1>
+  {{if .Tagline}}<p class="tagline">{{.Tagline}}</p>{{end}}
+</header>
 {{if and .Featured (not .Query.IsFiltered)}}
 <section class="featured">
-  <h2>Featured</h2>
+  <h2>Featured products</h2>
   <div class="featured-grid">
     {{range .Featured}}
     <div class="product-card">
@@ -38,14 +41,14 @@
       </select>
       <label for="f-q">Search</label>
       <input id="f-q" name="q" type="search" value="{{.Query.Q}}" maxlength="80" placeholder="Search products…" autocomplete="off">
-      <label>Price ({{.Currency}})</label>
+      <label>Price range ({{.Currency}})</label>
       <div class="price-row">
         <input name="min" type="text" inputmode="decimal" value="{{.Query.MinPriceDisplay}}" placeholder="Min" maxlength="20">
         <input name="max" type="text" inputmode="decimal" value="{{.Query.MaxPriceDisplay}}" placeholder="Max" maxlength="20">
       </div>
       <div class="checkbox-row">
         <input id="f-stock" name="stock" type="checkbox" value="1"{{if .Query.InStock}} checked{{end}}>
-        <label for="f-stock" style="margin:0;font-weight:400">In stock only</label>
+        <label for="f-stock" style="font-weight:400;margin:0">In stock only</label>
       </div>
       <button class="filter-btn" type="submit">Apply filters</button>
       {{if .Query.IsFiltered}}<a class="filter-clear" href="/">Clear all</a>{{end}}
@@ -53,11 +56,11 @@
   </aside>
   <section>
     <div class="sort-bar">
-      <span>Sort:</span>
+      <span>Sort</span>
       <a href="{{querySort .Query "newest"}}"{{if eq .Query.Sort "newest"}} class="active"{{end}}>Newest</a>
-      <a href="{{querySort .Query "price_asc"}}"{{if eq .Query.Sort "price_asc"}} class="active"{{end}}>Price ↑</a>
-      <a href="{{querySort .Query "price_desc"}}"{{if eq .Query.Sort "price_desc"}} class="active"{{end}}>Price ↓</a>
-      <a href="{{querySort .Query "name_asc"}}"{{if eq .Query.Sort "name_asc"}} class="active"{{end}}>Name A–Z</a>
+      <a href="{{querySort .Query "price_asc"}}"{{if eq .Query.Sort "price_asc"}} class="active"{{end}}>Price &#8593;</a>
+      <a href="{{querySort .Query "price_desc"}}"{{if eq .Query.Sort "price_desc"}} class="active"{{end}}>Price &#8595;</a>
+      <a href="{{querySort .Query "name_asc"}}"{{if eq .Query.Sort "name_asc"}} class="active"{{end}}>A&#8211;Z</a>
     </div>
     {{if .Products}}
     <div class="product-grid">
@@ -77,13 +80,13 @@
     </div>
     {{if gt .LastPage 1}}
     <nav class="pagination" aria-label="Pages">
-      {{if gt .Query.Page 1}}<a href="{{queryPage .Query (sub .Query.Page 1)}}">‹ Prev</a>{{end}}
+      {{if gt .Query.Page 1}}<a href="{{queryPage .Query (sub .Query.Page 1)}}">&#8249; Prev</a>{{end}}
       {{range paginate .Query.Page .LastPage}}
-        {{if eq . 0}}<span class="dots">…</span>
+        {{if eq . 0}}<span class="dots">&#8230;</span>
         {{else if eq . $.Query.Page}}<span class="cur">{{.}}</span>
         {{else}}<a href="{{queryPage $.Query .}}">{{.}}</a>{{end}}
       {{end}}
-      {{if lt .Query.Page .LastPage}}<a href="{{queryPage .Query (add .Query.Page 1)}}">Next ›</a>{{end}}
+      {{if lt .Query.Page .LastPage}}<a href="{{queryPage .Query (add .Query.Page 1)}}">Next &#8250;</a>{{end}}
     </nav>
     <p class="pager-info">{{.Total}} products</p>
     {{end}}
@@ -95,7 +98,6 @@
     {{end}}
   </section>
 </div>
-</main>
 {{if or .Contact .Phone .Address .OpeningHours}}
 <div class="shop-info">
   {{if .Contact}}<span><strong>Email:</strong> <a href="mailto:{{.Contact}}">{{.Contact}}</a></span>{{end}}
@@ -104,7 +106,7 @@
   {{if .OpeningHours}}<span><strong>Hours:</strong> {{.OpeningHours}}</span>{{end}}
 </div>
 {{end}}
-<footer class="site-footer">{{.Shop}} &mdash; part of {{.MallName}}</footer>
+<footer class="site-footer">{{.Shop}} &mdash; part of <a href="/">{{.MallName}}</a></footer>
 </body>
 </html>
 {{end}}
