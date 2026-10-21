@@ -1,5 +1,5 @@
 {{define "boutique_nav"}}<nav class="b-nav">
-  <div class="b-links"><a href="/#shop">Shop</a></div>
+  <div class="b-links"><a href="/#shop">Shop</a>{{if .HasBlog}}<a href="/blog">Journal</a>{{end}}</div>
   <a href="/" class="b-brand">{{.Shop}}</a>
   <div class="b-links b-right">{{if .Contact}}<a href="mailto:{{.Contact}}">Contact</a>{{end}}<a href="/admin/login" class="b-admin">Admin</a></div>
 </nav>{{end}}
@@ -47,7 +47,7 @@
 
 {{define "market_home"}}<nav class="site-nav">
   <a href="/" class="brand">{{.Shop}}</a>
-  <div class="nav-links"><a href="/admin/login" style="opacity:.45;font-size:.8rem">Admin</a></div>
+  <div class="nav-links">{{if .HasBlog}}<a href="/blog">Blog</a>{{end}}<a href="/admin/login" style="opacity:.45;font-size:.8rem">Admin</a></div>
 </nav>
 <div class="m-bar">
   <form class="m-search" method="get" action="/" role="search">

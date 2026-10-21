@@ -34,6 +34,8 @@ type pageData struct {
 	Title    string
 	Page     string // template name, used by the admin nav to mark the current section
 	Style    string // layout of the current shop, or of the mall on mall pages
+	Palette  string
+	Theme    string // auto, light or dark; auto leaves data-theme off
 	Error    string
 	Notice   string
 	MallName string
@@ -73,6 +75,13 @@ type pageData struct {
 	// product detail
 	Product store.Product
 
+	// blog
+	HasBlog    bool // the shop has published posts, so the nav links to the blog
+	Posts      []store.Post
+	Post       store.Post
+	PostBlocks []postBlock
+	Related    []store.Product // published products the post links to
+
 	// admin
 	Profile       store.TenantProfile
 	AdminPage     int
@@ -82,18 +91,21 @@ type pageData struct {
 	AdminLastPage int
 	FormProduct   store.Product
 	FormCats      []store.Category
+	Look          appearanceForm
 	IsEdit        bool
 }
 
 func (s *Server) page(r *http.Request, title string) pageData {
 	m, t := mallFrom(r.Context()), tenantFrom(r.Context())
-	style := m.Style
+	style, palette, theme := m.Style, m.Palette, "auto"
 	if t.ID != 0 {
-		style = t.Style
+		style, palette, theme = t.Style, t.Palette, t.Theme
 	}
 	return pageData{
 		Title:    title,
 		Style:    style,
+		Palette:  palette,
+		Theme:    theme,
 		MallName: m.Name,
 		Shop:     t.Name,
 	}
@@ -230,6 +242,10 @@ func (s *Server) showStorefront(w http.ResponseWriter, r *http.Request) {
 	pg.LastPage = lastPage
 	pg.Query = q
 	pg.Noindex = q.IsFiltered()
+	if pg.HasBlog, err = s.store.HasPublishedPosts(r.Context(), t.ID); err != nil {
+		s.serverError(w, "has posts", err)
+		return
+	}
 	if profile.Tagline != "" {
 		pg.MetaDesc = profile.Tagline
 	} else if profile.Description != "" {
@@ -260,6 +276,10 @@ func (s *Server) showProduct(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pg := s.page(r, product.Name+" – "+t.Name)
+	if pg.HasBlog, err = s.store.HasPublishedPosts(r.Context(), t.ID); err != nil {
+		s.serverError(w, "has posts", err)
+		return
+	}
 	pg.Product = product
 	pg.Currency = t.Currency
 	pg.MetaDesc = product.Name

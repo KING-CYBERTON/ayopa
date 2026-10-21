@@ -18,13 +18,17 @@ import (
 )
 
 var (
-	ErrInvalidEmail   = errors.New("invalid email address")
-	ErrInvalidName    = errors.New("name must be 1 to 80 characters")
-	ErrInvalidRole    = errors.New("role must be owner or staff")
-	ErrInvalidStatus  = errors.New("status must be active or suspended")
-	ErrInvalidContent = errors.New("content too long")
-	ErrInvalidStyle   = errors.New("unknown layout style")
-	ErrUserExists     = errors.New("a user with that email already exists in this shop")
+	ErrInvalidEmail      = errors.New("invalid email address")
+	ErrInvalidName       = errors.New("name must be 1 to 80 characters")
+	ErrInvalidRole       = errors.New("role must be owner or staff")
+	ErrInvalidStatus     = errors.New("status must be active or suspended")
+	ErrInvalidContent    = errors.New("content too long")
+	ErrInvalidStyle      = errors.New("unknown layout style")
+	ErrInvalidPalette    = errors.New("unknown palette")
+	ErrInvalidTheme      = errors.New("theme must be auto, light or dark")
+	ErrLockedByMall      = errors.New("reserved by the mall")
+	ErrAllPalettesLocked = errors.New("leave at least one palette open to shops")
+	ErrUserExists        = errors.New("a user with that email already exists in this shop")
 )
 
 func ValidEmail(e string) bool {
@@ -176,17 +180,87 @@ func SetMallContent(ctx context.Context, st *store.Store, mallDomain, tagline, d
 	return st.SetMallContent(ctx, tenant.NormalizeDomain(mallDomain), tagline, description, contact)
 }
 
-// MallStyles and ShopStyles are the layouts migration 0006 allows.
+// The layouts, palettes and colour modes the migrations allow.
 var (
 	MallStyles = []string{"classic", "editorial", "directory"}
 	ShopStyles = []string{"classic", "boutique", "market"}
+	Palettes   = []string{"forest", "violet", "ocean", "terracotta"}
+	Themes     = []string{"auto", "light", "dark"}
 )
 
-func SetMallStyle(ctx context.Context, st *store.Store, mallDomain, style string) error {
+// SetMallLook changes the mall landing layout and palette. An empty value
+// keeps the current one.
+func SetMallLook(ctx context.Context, st *store.Store, mallDomain, style, palette string) error {
+	domain := tenant.NormalizeDomain(mallDomain)
+	m, err := st.MallByDomain(ctx, domain)
+	if err != nil {
+		return fmt.Errorf("mall %q: %w", domain, err)
+	}
+	if style == "" {
+		style = m.Style
+	}
+	if palette == "" {
+		palette = m.Palette
+	}
 	if !slices.Contains(MallStyles, style) {
 		return ErrInvalidStyle
 	}
-	return st.SetMallStyle(ctx, tenant.NormalizeDomain(mallDomain), style)
+	if !slices.Contains(Palettes, palette) {
+		return ErrInvalidPalette
+	}
+	return st.SetMallLook(ctx, domain, style, palette)
+}
+
+// SetMallLocks reserves shop layouts and palettes. Classic can't be locked
+// and at least one palette stays open, so every shop always has a choice.
+func SetMallLocks(ctx context.Context, st *store.Store, mallDomain string, styles, palettes []string) error {
+	for _, v := range styles {
+		if v == "classic" || !slices.Contains(ShopStyles, v) {
+			return ErrInvalidStyle
+		}
+	}
+	for _, v := range palettes {
+		if !slices.Contains(Palettes, v) {
+			return ErrInvalidPalette
+		}
+	}
+	styles, palettes = uniq(styles), uniq(palettes)
+	if len(palettes) == len(Palettes) {
+		return ErrAllPalettesLocked
+	}
+	return st.SetMallLocks(ctx, tenant.NormalizeDomain(mallDomain), styles, palettes)
+}
+
+func uniq(v []string) []string {
+	out := []string{}
+	for _, s := range v {
+		if !slices.Contains(out, s) {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// CheckShopAppearance reports whether a shop may switch to the given look.
+// A value the mall has locked is still accepted when the shop already uses
+// it, so locking never breaks a shop's saved settings.
+func CheckShopAppearance(m store.Mall, cur store.Tenant, style, palette, theme string) error {
+	if !slices.Contains(ShopStyles, style) {
+		return ErrInvalidStyle
+	}
+	if !slices.Contains(Palettes, palette) {
+		return ErrInvalidPalette
+	}
+	if !slices.Contains(Themes, theme) {
+		return ErrInvalidTheme
+	}
+	if style != cur.Style && slices.Contains(m.LockedStyles, style) {
+		return ErrLockedByMall
+	}
+	if palette != cur.Palette && slices.Contains(m.LockedPalettes, palette) {
+		return ErrLockedByMall
+	}
+	return nil
 }
 
 func SetTenantStyle(ctx context.Context, st *store.Store, mallDomain, subdomain, style string) error {
