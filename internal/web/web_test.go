@@ -1078,3 +1078,47 @@ func TestAdminStatusChangeIsTenantBound(t *testing.T) {
 	}
 	_ = bobCookie
 }
+
+func TestDashboardStats(t *testing.T) {
+	e := newEnv(t, testConfig())
+	e.mall("mall1.test")
+	cookie := e.setup("mall1.test", "alice", "owner@example.com")
+	host := "alice.mall1.test"
+	ctx := context.Background()
+	m, _ := e.st.MallByDomain(ctx, "mall1.test")
+	alice, _ := e.st.TenantBySubdomain(ctx, m.ID, "alice")
+
+	if _, err := e.st.CreateCategory(ctx, alice.ID, "Shoes"); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range []struct {
+		name    string
+		stock   int
+		publish bool
+	}{{"Plenty", 50, true}, {"Few", 3, true}, {"None", 0, true}, {"Hidden", 2, false}} {
+		prod, err := e.st.CreateProduct(ctx, alice.ID, p.name, "", 100, p.stock, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if p.publish {
+			if err := e.st.SetProductStatus(ctx, alice.ID, prod.ID, store.ProductPublished); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+
+	got, err := e.st.DashboardStats(ctx, alice.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := store.DashboardStats{Published: 3, LowStock: 1, OutOfStock: 1, Categories: 1}
+	if got != want {
+		t.Errorf("stats = %+v, want %+v", got, want)
+	}
+
+	rec := e.do(http.MethodGet, host, "/admin", nil, cookie)
+	wantStatus(t, rec, http.StatusOK)
+	if !strings.Contains(rec.Body.String(), `<span class="stat-n">3</span><span class="stat-l">Published products</span>`) {
+		t.Error("dashboard does not show the published count")
+	}
+}
