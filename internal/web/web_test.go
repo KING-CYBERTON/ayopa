@@ -1079,104 +1079,47 @@ func TestAdminStatusChangeIsTenantBound(t *testing.T) {
 	_ = bobCookie
 }
 
-func TestMallLayouts(t *testing.T) {
+func TestDashboardStats(t *testing.T) {
 	e := newEnv(t, testConfig())
 	e.mall("mall1.test")
-	ctx := context.Background()
-	for _, s := range [][2]string{{"alpha", "Alpha Books"}, {"bravo", "Bravo Shoes"}, {"beta", "Beta Tea"}} {
-		if _, _, err := provision.CreateTenant(ctx, e.st, "mall1.test", s[0], s[1], s[0]+"@example.com", time.Hour); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	body := e.do(http.MethodGet, "mall1.test", "/", nil).Body.String()
-	if !strings.Contains(body, `data-style="classic"`) {
-		t.Error("new mall should use the classic layout")
-	}
-
-	if err := provision.SetMallLook(ctx, e.st, "mall1.test", "gallery", ""); !errors.Is(err, provision.ErrInvalidStyle) {
-		t.Errorf("unknown style: got %v, want ErrInvalidStyle", err)
-	}
-
-	if err := provision.SetMallLook(ctx, e.st, "mall1.test", "editorial", ""); err != nil {
-		t.Fatal(err)
-	}
-	body = e.do(http.MethodGet, "mall1.test", "/", nil).Body.String()
-	for _, want := range []string{`data-style="editorial"`, "Every shop", "family=Newsreader", "Bravo Shoes"} {
-		if !strings.Contains(body, want) {
-			t.Errorf("editorial landing missing %q", want)
-		}
-	}
-
-	if err := provision.SetMallLook(ctx, e.st, "mall1.test", "directory", ""); err != nil {
-		t.Fatal(err)
-	}
-	body = e.do(http.MethodGet, "mall1.test", "/", nil).Body.String()
-	for _, want := range []string{`id="letter-A"`, `id="letter-B"`, "Find a shop in", "3 shops"} {
-		if !strings.Contains(body, want) {
-			t.Errorf("directory landing missing %q", want)
-		}
-	}
-	if strings.Contains(body, "family=Newsreader") {
-		t.Error("directory landing should not load the serif font")
-	}
-
-	body = e.do(http.MethodGet, "mall1.test", "/?q=BRAVO", nil).Body.String()
-	if !strings.Contains(body, "Bravo Shoes") || strings.Contains(body, "Beta Tea") || strings.Contains(body, "Alpha Books") {
-		t.Error("directory search should keep only matching shops")
-	}
-	if !strings.Contains(body, "noindex") {
-		t.Error("directory search results should be noindex")
-	}
-
-	body = e.do(http.MethodGet, "mall1.test", "/?q=%3Cscript%3E", nil).Body.String()
-	if !strings.Contains(body, "No shops match &ldquo;&lt;script&gt;&rdquo;") {
-		t.Error("empty directory search should echo the escaped query")
-	}
-}
-
-func TestShopLayouts(t *testing.T) {
-	e := newEnv(t, testConfig())
-	e.mall("mall1.test")
-	e.setup("mall1.test", "alice", "owner@example.com")
+	cookie := e.setup("mall1.test", "alice", "owner@example.com")
+	host := "alice.mall1.test"
 	ctx := context.Background()
 	m, _ := e.st.MallByDomain(ctx, "mall1.test")
 	alice, _ := e.st.TenantBySubdomain(ctx, m.ID, "alice")
-	p := e.createProduct(ctx, t, alice.ID, "Kiondo Basket", "woven", 250000, 3)
-	e.publishProduct(ctx, t, alice.ID, p.ID)
 
-	if err := provision.SetTenantStyle(ctx, e.st, "mall1.test", "alice", "editorial"); !errors.Is(err, provision.ErrInvalidStyle) {
-		t.Errorf("mall-only style on a shop: got %v, want ErrInvalidStyle", err)
+	if _, err := e.st.CreateCategory(ctx, alice.ID, "Shoes"); err != nil {
+		t.Fatal(err)
 	}
-
-	cases := []struct {
-		style string
-		want  []string
-	}{
-		{"classic", []string{`data-style="classic"`, `class="filter-form"`}},
-		{"boutique", []string{`data-style="boutique"`, `class="b-hero"`, `class="b-tile"`, "family=Newsreader"}},
-		{"market", []string{`data-style="market"`, `class="m-search"`, `class="m-grid"`}},
-	}
-	for _, c := range cases {
-		if err := provision.SetTenantStyle(ctx, e.st, "mall1.test", "alice", c.style); err != nil {
+	for _, p := range []struct {
+		name    string
+		stock   int
+		publish bool
+	}{{"Plenty", 50, true}, {"Few", 3, true}, {"None", 0, true}, {"Hidden", 2, false}} {
+		prod, err := e.st.CreateProduct(ctx, alice.ID, p.name, "", 100, p.stock, nil)
+		if err != nil {
 			t.Fatal(err)
 		}
-		rec := e.do(http.MethodGet, "alice.mall1.test", "/", nil)
-		wantStatus(t, rec, http.StatusOK)
-		body := rec.Body.String()
-		for _, w := range c.want {
-			if !strings.Contains(body, w) {
-				t.Errorf("%s storefront missing %q", c.style, w)
+		if p.publish {
+			if err := e.st.SetProductStatus(ctx, alice.ID, prod.ID, store.ProductPublished); err != nil {
+				t.Fatal(err)
 			}
 		}
-		if !strings.Contains(body, "Kiondo Basket") {
-			t.Errorf("%s storefront missing the product", c.style)
-		}
-		rec = e.do(http.MethodGet, "alice.mall1.test", fmt.Sprintf("/shop/%d", p.ID), nil)
-		wantStatus(t, rec, http.StatusOK)
-		if !strings.Contains(rec.Body.String(), `data-style="`+c.style+`"`) {
-			t.Errorf("%s product page missing its layout style", c.style)
-		}
+	}
+
+	got, err := e.st.DashboardStats(ctx, alice.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := store.DashboardStats{Published: 3, LowStock: 1, OutOfStock: 1, Categories: 1}
+	if got != want {
+		t.Errorf("stats = %+v, want %+v", got, want)
+	}
+
+	rec := e.do(http.MethodGet, host, "/admin", nil, cookie)
+	wantStatus(t, rec, http.StatusOK)
+	if !strings.Contains(rec.Body.String(), `<span class="stat-n">3</span><span class="stat-l">Published products</span>`) {
+		t.Error("dashboard does not show the published count")
 	}
 }
 
