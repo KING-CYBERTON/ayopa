@@ -4,6 +4,7 @@
   <a href="/" class="brand">{{.Shop}}</a>
   <div class="nav-links">
     <a href="/">&#8592; All products</a>
+    {{if .HasBlog}}<a href="/blog">Blog</a>{{end}}
     <a href="/admin/login" style="opacity:.45;font-size:.8rem;margin-left:.25rem">Admin</a>
   </div>
 </nav>{{end}}

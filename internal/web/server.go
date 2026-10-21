@@ -70,6 +70,13 @@ var templateFuncs = template.FuncMap{
 	"cardOf": func(p store.Product, currency string) productCard {
 		return productCard{P: p, Currency: currency}
 	},
+	"date": func(t *time.Time) string {
+		if t == nil {
+			return ""
+		}
+		return t.Format("2 Jan 2006")
+	},
+	"readMinutes": readMinutes,
 	"queryCat": func(q catalog.ListQuery, slug string) string {
 		q2 := q
 		q2.Category = slug
@@ -183,6 +190,8 @@ func (s *Server) routes() {
 	// storefront (public)
 	s.tenantMux.HandleFunc("GET /{$}", s.showStorefront)
 	s.tenantMux.HandleFunc("GET /shop/{id}", s.showProduct)
+	s.tenantMux.HandleFunc("GET /blog", s.showBlog)
+	s.tenantMux.HandleFunc("GET /blog/{id}", s.showPost)
 
 	// admin auth
 	s.tenantMux.HandleFunc("GET /admin", s.showDashboard)
@@ -198,6 +207,14 @@ func (s *Server) routes() {
 	s.tenantMux.HandleFunc("POST /admin/settings", s.handleSettings)
 	s.tenantMux.HandleFunc("GET /admin/appearance", s.showAppearance)
 	s.tenantMux.HandleFunc("POST /admin/appearance", s.handleAppearance)
+
+	// admin blog
+	s.tenantMux.HandleFunc("GET /admin/blog", s.showAdminBlog)
+	s.tenantMux.HandleFunc("GET /admin/blog/new", s.showPostForm)
+	s.tenantMux.HandleFunc("POST /admin/blog/new", s.handleSavePost)
+	s.tenantMux.HandleFunc("GET /admin/blog/{id}", s.showPostForm)
+	s.tenantMux.HandleFunc("POST /admin/blog/{id}", s.handleSavePost)
+	s.tenantMux.HandleFunc("POST /admin/blog/{id}/delete", s.handleDeletePost)
 
 	// admin categories
 	s.tenantMux.HandleFunc("GET /admin/categories", s.showCategories)
