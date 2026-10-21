@@ -1,0 +1,29 @@
+{{define "admin_post_form"}}{{template "head" .}}
+{{template "admin_bar" .}}
+<main class="admin-main">
+<div class="page-head"><h2>{{if .IsEdit}}Edit post{{else}}New post{{end}}</h2></div>
+{{if .Error}}<p class="err" role="alert">{{.Error}}</p>{{end}}
+{{if .Notice}}<p class="ok" role="status">{{.Notice}}</p>{{end}}
+<form class="post-editor" method="post" action="{{if .IsEdit}}/admin/blog/{{.Post.ID}}{{else}}/admin/blog/new{{end}}">
+<div class="card">
+  <label for="p-title" style="margin-top:0">Title <small>(required, max 120 characters)</small></label>
+  <input id="p-title" class="title-input" name="title" type="text" value="{{.Post.Title}}" required maxlength="120"{{if not .IsEdit}} autofocus{{end}}>
+  <label for="p-excerpt">Excerpt <small>(shown on the blog page, max 240)</small></label>
+  <textarea id="p-excerpt" name="excerpt" rows="2" maxlength="240">{{.Post.Excerpt}}</textarea>
+  <label for="p-body">Body</label>
+  <textarea id="p-body" class="body-input" name="body" rows="16" maxlength="20000">{{.Post.Body}}</textarea>
+  <small class="muted">Plain text. Leave a blank line between paragraphs and start a line with ## for a heading. Paste a product link such as /shop/12 to show that product under the post.</small>
+</div>
+<aside>
+  <div class="card">
+    <p class="status-row">Status <span class="badge badge-{{.Post.Status}}">{{.Post.Status}}</span></p>
+    <label for="p-cat">Category <small>(optional)</small></label>
+    <input id="p-cat" name="category" type="text" value="{{.Post.Category}}" maxlength="40" placeholder="e.g. News">
+    <button class="btn btn-block" type="submit" name="action" value="publish">{{if eq .Post.Status "published"}}Update post{{else}}Publish{{end}}</button>
+    <button class="btn btn-ghost btn-block" type="submit" name="action" value="draft">{{if eq .Post.Status "published"}}Unpublish to draft{{else}}Save draft{{end}}</button>
+  </div>
+  <a class="back" href="/admin/blog">&#8592; Back to posts</a>
+</aside>
+</form>
+</main>
+{{template "foot" .}}{{end}}

@@ -74,6 +74,13 @@ type pageData struct {
 	// product detail
 	Product store.Product
 
+	// blog
+	HasBlog    bool // the shop has published posts, so the nav links to the blog
+	Posts      []store.Post
+	Post       store.Post
+	PostBlocks []postBlock
+	Related    []store.Product // published products the post links to
+
 	// admin
 	Profile       store.TenantProfile
 	AdminPage     int
@@ -234,6 +241,10 @@ func (s *Server) showStorefront(w http.ResponseWriter, r *http.Request) {
 	pg.LastPage = lastPage
 	pg.Query = q
 	pg.Noindex = q.IsFiltered()
+	if pg.HasBlog, err = s.store.HasPublishedPosts(r.Context(), t.ID); err != nil {
+		s.serverError(w, "has posts", err)
+		return
+	}
 	if profile.Tagline != "" {
 		pg.MetaDesc = profile.Tagline
 	} else if profile.Description != "" {
@@ -264,6 +275,10 @@ func (s *Server) showProduct(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pg := s.page(r, product.Name+" – "+t.Name)
+	if pg.HasBlog, err = s.store.HasPublishedPosts(r.Context(), t.ID); err != nil {
+		s.serverError(w, "has posts", err)
+		return
+	}
 	pg.Product = product
 	pg.Currency = t.Currency
 	pg.MetaDesc = product.Name
