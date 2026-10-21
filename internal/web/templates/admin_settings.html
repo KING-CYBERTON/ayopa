@@ -1,16 +1,10 @@
 {{define "admin_settings"}}{{template "head" .}}
-<h1>{{.Shop}}</h1>
-<p><small>Signed in as {{.UserEmail}} ({{.Role}}) &mdash; <a href="/admin">Dashboard</a></small></p>
-<nav>
-  <a href="/admin/products">Products</a>
-  <a href="/admin/categories">Categories</a>
-  <a href="/admin/settings"><b>Settings</b></a>
-  <form method="post" action="/admin/logout" style="display:inline;margin:0"><button class="inline-btn" type="submit">Log out</button></form>
-</nav>
-<h2>Shop Settings</h2>
-{{if .Error}}<p class="err">{{.Error}}</p>{{end}}
-{{if .Notice}}<p class="ok">{{.Notice}}</p>{{end}}
-<form method="post" action="/admin/settings">
+{{template "admin_bar" .}}
+<main class="admin-main">
+<div class="page-head"><h1>Shop settings</h1></div>
+{{if .Error}}<p class="err" role="alert">{{.Error}}</p>{{end}}
+{{if .Notice}}<p class="ok" role="status">{{.Notice}}</p>{{end}}
+<form class="card narrow" method="post" action="/admin/settings">
 <fieldset>
   <legend>Identity</legend>
   <label for="tagline">Tagline <small>(max 140 characters)</small></label>
@@ -20,13 +14,19 @@
 </fieldset>
 <fieldset>
   <legend>Contact</legend>
-  <label for="contact_email">Contact Email</label>
-  <input id="contact_email" name="contact_email" type="email" value="{{.Profile.ContactEmail}}" maxlength="254">
-  <label for="phone">Phone</label>
-  <input id="phone" name="phone" type="tel" value="{{.Profile.Phone}}" maxlength="30">
+  <div class="form-row">
+    <div>
+      <label for="contact_email">Contact email</label>
+      <input id="contact_email" name="contact_email" type="email" value="{{.Profile.ContactEmail}}" maxlength="254">
+    </div>
+    <div>
+      <label for="phone">Phone</label>
+      <input id="phone" name="phone" type="tel" value="{{.Profile.Phone}}" maxlength="30">
+    </div>
+  </div>
   <label for="address">Address <small>(max 300 characters)</small></label>
   <textarea id="address" name="address" rows="2" maxlength="300">{{.Profile.Address}}</textarea>
-  <label for="opening_hours">Opening Hours <small>(max 300 characters)</small></label>
+  <label for="opening_hours">Opening hours <small>(max 300 characters)</small></label>
   <textarea id="opening_hours" name="opening_hours" rows="2" maxlength="300">{{.Profile.OpeningHours}}</textarea>
 </fieldset>
 <fieldset>
@@ -38,6 +38,7 @@
     {{end}}
   </select>
 </fieldset>
-<button type="submit">Save settings</button>
+<div class="form-actions"><button class="btn" type="submit">Save settings</button></div>
 </form>
+</main>
 {{template "foot" .}}{{end}}

@@ -1,43 +1,43 @@
 {{define "admin_categories"}}{{template "head" .}}
-<h1>{{.Shop}}</h1>
-<p><small>Signed in as {{.UserEmail}} ({{.Role}}) &mdash; <a href="/admin">Dashboard</a></small></p>
-<nav>
-  <a href="/admin/products">Products</a>
-  <a href="/admin/categories"><b>Categories</b></a>
-  {{if eq .Role "owner"}}<a href="/admin/settings">Settings</a>{{end}}
-  <form method="post" action="/admin/logout" style="display:inline;margin:0"><button class="inline-btn" type="submit">Log out</button></form>
-</nav>
-<h2>Categories</h2>
-{{if .Error}}<p class="err">{{.Error}}</p>{{end}}
-{{if .Notice}}<p class="ok">{{.Notice}}</p>{{end}}
-<form method="post" action="/admin/categories">
-  <div class="form-row">
-    <input id="name" name="name" type="text" placeholder="New category name" required maxlength="60">
-    <button type="submit" style="margin-top:0;width:auto;padding:.5rem 1rem">Add</button>
-  </div>
+{{template "admin_bar" .}}
+<main class="admin-main">
+<div class="page-head"><h1>Categories</h1></div>
+{{if .Error}}<p class="err" role="alert">{{.Error}}</p>{{end}}
+{{if .Notice}}<p class="ok" role="status">{{.Notice}}</p>{{end}}
+<form class="card inline-form" method="post" action="/admin/categories" style="margin-bottom:var(--space-6)">
+  <label for="name" class="muted" style="margin:0;white-space:nowrap">New category</label>
+  <input id="name" name="name" type="text" placeholder="e.g. Shoes" required maxlength="60">
+  <button class="btn" type="submit">Add</button>
 </form>
 {{if .Categories}}
+<div class="table-wrap">
 <table>
-  <thead><tr><th>Name</th><th>Slug</th><th>Products</th><th>Actions</th></tr></thead>
+  <thead><tr><th>Name</th><th>Slug</th><th class="num">Products</th><th>Actions</th></tr></thead>
   <tbody>
   {{range .Categories}}
   <tr>
-    <td>{{.Name}}</td>
-    <td><code>{{.Slug}}</code></td>
-    <td>{{.Count}}</td>
-    <td class="actions">
-      <form method="post" action="/admin/categories/{{.ID}}/rename">
-        <input name="name" type="text" value="{{.Name}}" required maxlength="60" style="width:10rem;display:inline;padding:.25rem">
-        <button type="submit" style="margin:0;padding:.25rem .5rem;width:auto;font-size:.8rem">Rename</button>
-      </form>
-      <form method="post" action="/admin/categories/{{.ID}}/delete">
-        <button type="submit" style="margin:0;padding:.25rem .5rem;width:auto;font-size:.8rem;background:#b00020;color:#fff;border:none;border-radius:.2rem;cursor:pointer"
-          onclick="return confirm('Delete category {{.Name}}? Products will become uncategorised.')">Delete</button>
+    <td>
+      <form class="inline-form" method="post" action="/admin/categories/{{.ID}}/rename">
+        <input name="name" type="text" value="{{.Name}}" required maxlength="60" aria-label="Name of {{.Name}}">
+        <button type="submit" class="btn btn-secondary btn-sm">Rename</button>
       </form>
     </td>
+    <td><code>{{.Slug}}</code></td>
+    <td class="num">{{.Count}}</td>
+    <td><div class="actions">
+      <details class="confirm">
+        <summary class="btn btn-ghost btn-sm">Delete…</summary>
+        <div class="confirm-pop">
+          <span>Delete “{{.Name}}”? Its products become uncategorised.</span>
+          <form method="post" action="/admin/categories/{{.ID}}/delete"><button type="submit" class="btn btn-danger btn-sm">Delete category</button></form>
+        </div>
+      </details>
+    </div></td>
   </tr>
   {{end}}
   </tbody>
 </table>
-{{else}}<p><small>No categories yet.</small></p>{{end}}
+</div>
+{{else}}<div class="card empty"><p>No categories yet. Add one above to group your products.</p></div>{{end}}
+</main>
 {{template "foot" .}}{{end}}

@@ -1,18 +1,26 @@
 {{define "dashboard"}}{{template "head" .}}
-<h1>{{.Shop}}</h1>
-<p><small>Signed in as {{.UserEmail}} ({{.Role}}) in {{.MallName}}</small></p>
-<nav>
-  <a href="/admin/products">Products</a>
-  <a href="/admin/categories">Categories</a>
-  {{if eq .Role "owner"}}<a href="/admin/settings">Settings</a>{{end}}
-  <form method="post" action="/admin/logout" style="display:inline;margin:0"><button class="inline-btn" type="submit">Log out</button></form>
-</nav>
+{{template "admin_bar" .}}
+<main class="admin-main">
+<div class="page-head">
+  <div>
+    <h1>{{.Shop}}</h1>
+    <p class="muted">Signed in as {{.UserEmail}} ({{.Role}}) in {{.MallName}}</p>
+  </div>
+  <a class="btn" href="/admin/products/new">+ New product</a>
+</div>
+<section class="card narrow">
 <h2>Notes</h2>
 <form method="post" action="/admin/notes">
 <label for="body">New note</label>
 <textarea id="body" name="body" rows="3" required maxlength="2000"></textarea>
-<button type="submit">Add note</button>
+<div class="form-actions"><button class="btn" type="submit">Add note</button></div>
 </form>
-{{range .Notes}}<div class="note"><div>{{.Body}}</div><small>{{.Author}} · {{.CreatedAt.UTC.Format "2006-01-02 15:04"}} UTC</small></div>
-{{else}}<p><small>No notes yet.</small></p>{{end}}
+{{if .Notes}}
+<ul class="notes">
+{{range .Notes}}<li><div class="body">{{.Body}}</div><small>{{.Author}} · {{.CreatedAt.UTC.Format "2006-01-02 15:04"}} UTC</small></li>
+{{end}}
+</ul>
+{{else}}<p class="muted" style="margin-top:var(--space-4)">No notes yet.</p>{{end}}
+</section>
+</main>
 {{template "foot" .}}{{end}}
