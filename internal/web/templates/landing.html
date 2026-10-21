@@ -1,5 +1,5 @@
 {{define "landing"}}<!doctype html>
-<html lang="en" data-palette="violet" data-style="{{or .Style "classic"}}">
+<html lang="en" data-palette="{{or .Palette "violet"}}" data-style="{{or .Style "classic"}}"{{if eq .Theme "light" "dark"}} data-theme="{{.Theme}}"{{end}}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">

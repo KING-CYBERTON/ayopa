@@ -1122,3 +1122,67 @@ func TestDashboardStats(t *testing.T) {
 		t.Error("dashboard does not show the published count")
 	}
 }
+
+func TestShopAppearance(t *testing.T) {
+	e := newEnv(t, testConfig())
+	e.mall("mall1.test")
+	owner := e.setup("mall1.test", "alice", "owner@example.com")
+	host := "alice.mall1.test"
+	ctx := context.Background()
+
+	rec := e.do(http.MethodGet, host, "/admin/appearance", nil, owner)
+	wantStatus(t, rec, http.StatusOK)
+	if body := rec.Body.String(); !strings.Contains(body, `value="classic" checked`) || !strings.Contains(body, `value="forest" checked`) {
+		t.Error("appearance page should show the classic forest defaults")
+	}
+	wantStatus(t, e.do(http.MethodGet, host, "/admin/appearance", nil), http.StatusSeeOther)
+
+	look := func(style, palette, theme string) url.Values {
+		return url.Values{"style": {style}, "palette": {palette}, "theme": {theme}}
+	}
+	wantStatus(t, e.do(http.MethodPost, host, "/admin/appearance", look("boutique", "ocean", "dark")), http.StatusUnauthorized)
+	wantStatus(t, e.do(http.MethodPost, host, "/admin/appearance", look("gallery", "ocean", "dark"), owner), http.StatusBadRequest)
+	wantStatus(t, e.do(http.MethodPost, host, "/admin/appearance", look("boutique", "ocean", "dark"), owner), http.StatusSeeOther)
+	body := e.do(http.MethodGet, host, "/", nil).Body.String()
+	if !strings.Contains(body, `data-palette="ocean" data-style="boutique" data-theme="dark"`) {
+		t.Error("storefront should use the saved appearance")
+	}
+
+	// Locks block new choices but keep the shop's current ones.
+	if err := provision.SetMallLocks(ctx, e.st, "mall1.test", []string{"boutique", "market"}, []string{"ocean", "violet"}); err != nil {
+		t.Fatal(err)
+	}
+	wantStatus(t, e.do(http.MethodPost, host, "/admin/appearance", look("market", "ocean", "auto"), owner), http.StatusBadRequest)
+	wantStatus(t, e.do(http.MethodPost, host, "/admin/appearance", look("boutique", "violet", "auto"), owner), http.StatusBadRequest)
+	wantStatus(t, e.do(http.MethodPost, host, "/admin/appearance", look("boutique", "ocean", "light"), owner), http.StatusSeeOther)
+	page := e.do(http.MethodGet, host, "/admin/appearance", nil, owner).Body.String()
+	if !strings.Contains(page, `value="market" disabled`) || strings.Contains(page, `value="boutique" checked disabled`) {
+		t.Error("only locked options the shop doesn't use should be disabled")
+	}
+	body = e.do(http.MethodGet, host, "/", nil).Body.String()
+	if !strings.Contains(body, `data-palette="ocean" data-style="boutique" data-theme="light"`) {
+		t.Error("the shop should keep its locked layout and palette and switch to light mode")
+	}
+}
+
+func TestMallLocksRules(t *testing.T) {
+	e := newEnv(t, testConfig())
+	e.mall("mall1.test")
+	ctx := context.Background()
+	if err := provision.SetMallLocks(ctx, e.st, "mall1.test", []string{"classic"}, nil); !errors.Is(err, provision.ErrInvalidStyle) {
+		t.Errorf("locking classic: got %v", err)
+	}
+	if err := provision.SetMallLocks(ctx, e.st, "mall1.test", nil, provision.Palettes); !errors.Is(err, provision.ErrAllPalettesLocked) {
+		t.Errorf("locking every palette: got %v", err)
+	}
+	if err := provision.SetMallLocks(ctx, e.st, "mall1.test", nil, nil); err != nil {
+		t.Errorf("clearing locks: %v", err)
+	}
+	if err := provision.SetMallLook(ctx, e.st, "mall1.test", "", "ocean"); err != nil {
+		t.Fatal(err)
+	}
+	body := e.do(http.MethodGet, "mall1.test", "/", nil).Body.String()
+	if !strings.Contains(body, `data-palette="ocean" data-style="classic"`) {
+		t.Error("mall landing should use its palette and keep its layout")
+	}
+}

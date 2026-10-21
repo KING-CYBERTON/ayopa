@@ -1,0 +1,60 @@
+{{define "admin_appearance"}}{{template "head" .}}
+{{template "admin_bar" .}}
+<main class="admin-main">
+<div class="page-head"><h2>Appearance</h2></div>
+<p class="muted">Pick a layout, a colour palette and a colour mode for your storefront. {{.MallName}} offers {{.Look.Open}} of {{len .Look.Styles}} layouts.</p>
+{{if .Error}}<p class="err" role="alert">{{.Error}}</p>{{end}}
+{{if .Notice}}<p class="ok" role="status">{{.Notice}}</p>{{end}}
+<form method="post" action="/admin/appearance">
+<fieldset>
+  <legend>Layout</legend>
+  <div class="look-grid">
+    {{range .Look.Styles}}
+    <label class="opt">
+      <input type="radio" name="style" value="{{.Key}}"{{if .Selected}} checked{{end}}{{if .Locked}} disabled{{end}}>
+      <span class="mini" data-style="{{.Key}}" data-palette="{{$.Look.Palette}}" data-theme="light" aria-hidden="true">
+        <span class="mini-hero">{{$.Shop}}</span>
+        <span class="mini-grid"><i style="--c:var(--thumb-1)"></i><i style="--c:var(--thumb-2)"></i><i style="--c:var(--thumb-3)"></i><i style="--c:var(--thumb-4)"></i></span>
+      </span>
+      <span class="opt-name">{{.Name}}<span class="opt-tick" aria-hidden="true">&#10003;</span></span>
+      <span class="opt-desc">{{.Desc}}</span>
+      {{if .Locked}}<span class="opt-lock">Reserved by {{$.MallName}}</span>{{end}}
+    </label>
+    {{end}}
+  </div>
+</fieldset>
+<fieldset>
+  <legend>Palette</legend>
+  <div class="look-grid">
+    {{range .Look.Palettes}}
+    <label class="opt">
+      <input type="radio" name="palette" value="{{.Key}}"{{if .Selected}} checked{{end}}{{if .Locked}} disabled{{end}}>
+      <span class="swatches" data-palette="{{.Key}}" data-theme="light" aria-hidden="true"><span style="background:var(--color-primary)"></span><span style="background:var(--color-primary-strong)"></span><span style="background:var(--color-cta)"></span><span style="background:var(--surface-page)"></span></span>
+      <span class="opt-name">{{.Name}}<span class="opt-tick" aria-hidden="true">&#10003;</span></span>
+      {{if .Locked}}<span class="opt-lock">Reserved by {{$.MallName}}</span>{{end}}
+    </label>
+    {{end}}
+  </div>
+</fieldset>
+<fieldset>
+  <legend>Colour mode</legend>
+  <div class="look-grid">
+    {{range .Look.Themes}}
+    <label class="opt">
+      <input type="radio" name="theme" value="{{.Key}}"{{if .Selected}} checked{{end}}>
+      <span class="mode-sample" aria-hidden="true">
+        {{if eq .Key "dark"}}<span data-palette="{{$.Look.Palette}}" data-theme="dark">Aa</span>
+        {{else if eq .Key "light"}}<span data-palette="{{$.Look.Palette}}" data-theme="light">Aa</span>
+        {{else}}<span data-palette="{{$.Look.Palette}}" data-theme="light">Aa</span><span data-palette="{{$.Look.Palette}}" data-theme="dark">Aa</span>{{end}}
+      </span>
+      <span class="opt-name">{{.Name}}<span class="opt-tick" aria-hidden="true">&#10003;</span></span>
+      <span class="opt-desc">{{.Desc}}</span>
+    </label>
+    {{end}}
+  </div>
+</fieldset>
+<button class="btn" type="submit">Publish appearance</button>
+<a class="btn btn-secondary" href="/" target="_blank" rel="noopener">View shop &#8599;</a>
+</form>
+</main>
+{{template "foot" .}}{{end}}

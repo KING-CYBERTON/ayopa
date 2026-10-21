@@ -196,6 +196,8 @@ func (s *Server) routes() {
 	// admin settings
 	s.tenantMux.HandleFunc("GET /admin/settings", s.showSettings)
 	s.tenantMux.HandleFunc("POST /admin/settings", s.handleSettings)
+	s.tenantMux.HandleFunc("GET /admin/appearance", s.showAppearance)
+	s.tenantMux.HandleFunc("POST /admin/appearance", s.handleAppearance)
 
 	// admin categories
 	s.tenantMux.HandleFunc("GET /admin/categories", s.showCategories)

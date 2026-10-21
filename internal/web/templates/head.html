@@ -140,6 +140,37 @@ details.confirm[open] .confirm-pop{display:flex}
 .empty .btn{margin-top:var(--space-4)}
 
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important}}
+/* Appearance page */
+.muted{color:var(--text-muted);font-size:.9rem;margin-bottom:var(--space-4)}
+.mini,.mini-hero{display:block}
+.look-grid{display:grid;gap:1rem;grid-template-columns:repeat(auto-fill,minmax(min(100%,13.5rem),1fr))}
+.opt{position:relative;display:flex;flex-direction:column;gap:.5rem;border:1.5px solid var(--border-default);border-radius:.75rem;padding:.75rem;background:var(--surface-card);cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.opt input{position:absolute;opacity:0;pointer-events:none}
+.opt:hover{border-color:var(--border-accent)}
+.opt:has(input:checked){border-color:var(--color-primary);box-shadow:0 0 0 2px var(--color-primary-soft)}
+.opt:has(input:focus-visible){outline:2px solid var(--color-primary);outline-offset:2px}
+.opt:has(input:disabled){cursor:not-allowed;opacity:.55}
+.opt-name{font-weight:700;display:flex;justify-content:space-between;gap:.5rem;align-items:center}
+.opt-desc{font-size:.8rem;color:var(--text-muted);line-height:1.45}
+.opt-tick{display:none;width:1.25rem;height:1.25rem;border-radius:50%;background:var(--color-primary);color:#fff;font-size:.7rem;align-items:center;justify-content:center}
+.opt:has(input:checked) .opt-tick{display:inline-flex}
+.opt-lock{font-size:.7rem;font-weight:600;color:var(--text-muted)}
+.mini{height:7.5rem;border-radius:.45rem;overflow:hidden;background:var(--surface-page);border:1px solid var(--border-default);color:var(--text-strong)}
+.mini-hero{background:var(--hero-gradient);color:#fff;text-align:center;font-weight:800;font-size:.7rem;padding:.55rem .4rem}
+[data-style="boutique"] .mini-hero{background:none;color:var(--text-strong);font-family:var(--font-serif);font-weight:400;font-size:.8rem;border-bottom:1px solid var(--border-default)}
+.mini-grid{display:grid;gap:.3rem;padding:.4rem;grid-template-columns:repeat(3,1fr)}
+[data-style="boutique"] .mini-grid{grid-template-columns:repeat(2,1fr);gap:.5rem}
+[data-style="market"] .mini-grid{grid-template-columns:repeat(4,1fr);gap:.25rem}
+.mini-grid i{display:block;background:var(--surface-card);border:1px solid var(--border-default);border-radius:var(--radius-card,.3rem);overflow:hidden}
+[data-style="classic"] .mini-grid i:nth-child(n+4),[data-style="boutique"] .mini-grid i:nth-child(n+3){display:none}
+.mini-grid i::before{content:"";display:block;height:1.6rem;background:var(--c)}
+[data-style="boutique"] .mini-grid i::before{height:2.6rem}
+[data-style="market"] .mini-grid i::before{height:1.1rem}
+.mini-grid i::after{content:"";display:block;height:.25rem;width:55%;margin:.25rem;border-radius:2px;background:var(--color-primary)}
+.swatches{display:flex;gap:.3rem}
+.swatches span{width:1.6rem;height:1.6rem;border-radius:50%;border:1px solid var(--border-default)}
+.mode-sample{height:2.25rem;border-radius:.4rem;border:1px solid var(--border-default);display:flex;overflow:hidden}
+.mode-sample span{flex:1;background:var(--surface-page);display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;color:var(--color-primary-text)}
 </style>
 </head>
 <body>
@@ -158,7 +189,8 @@ details.confirm[open] .confirm-pop{display:flex}
       <a href="/admin"{{if eq .Page "dashboard"}} aria-current="page"{{end}}>Dashboard</a>
       <a href="/admin/products"{{if eq .Page "admin_products" "admin_product_form"}} aria-current="page"{{end}}>Products</a>
       <a href="/admin/categories"{{if eq .Page "admin_categories"}} aria-current="page"{{end}}>Categories</a>
-      {{if eq .Role "owner"}}<a href="/admin/settings"{{if eq .Page "admin_settings"}} aria-current="page"{{end}}>Settings</a>{{end}}
+      {{if eq .Role "owner"}}<a href="/admin/settings"{{if eq .Page "admin_settings"}} aria-current="page"{{end}}>Settings</a>
+      <a href="/admin/appearance"{{if eq .Page "admin_appearance"}} aria-current="page"{{end}}>Appearance</a>{{end}}
       <a class="nav-end" href="/" target="_blank" rel="noopener">View shop &#8599;</a>
     </nav>
   </div>
