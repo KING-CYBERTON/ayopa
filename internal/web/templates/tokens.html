@@ -1,5 +1,8 @@
 {{define "tokens"}}/* Ayopa design system tokens (tokens/colors.css, typography.css, spacing.css,
-   styles.css from the Ayopa Design System). Pages pick a palette with
+   styles.css from the Ayopa Design System). --color-primary-text and --color-link-text are for text on page and card
+   surfaces; dark mode lightens them so prices and links stay readable, and
+   darkens --color-primary-soft so tinted panels keep light text legible.
+   Pages pick a palette with
    data-palette on <html>; dark mode follows the OS unless data-theme is set. */
 /* Ayopa colour tokens. Values lifted from internal/web/templates (shop_head.html, landing.html, head.html, server.go).
    Usage: put data-palette and data-theme on the SAME element (usually <html> or a page wrapper). */
@@ -29,7 +32,7 @@
 --color-link:var(--ocean-700);
 --color-link-strong:var(--ocean-800);
 --palette-light-page:var(--gray-50);--palette-light-fg:var(--gray-900);--palette-light-muted:var(--gray-500);--palette-light-border:var(--gray-200);
---palette-dark-page:#0A1A0F;--palette-dark-card:#0F2118;--palette-dark-fg:#F0FDF4;--palette-dark-muted:#86EFAC;--palette-dark-border:#1C3828;--palette-dark-accent-border:#14532D;
+--palette-dark-page:#0A1A0F;--palette-dark-text:#4ADE80;--palette-dark-soft:#10291A;--palette-dark-card:#0F2118;--palette-dark-fg:#F0FDF4;--palette-dark-muted:#86EFAC;--palette-dark-border:#1C3828;--palette-dark-accent-border:#14532D;
 
 /* semantic (light) */
 --surface-page:var(--palette-light-page);
@@ -46,6 +49,7 @@
 --color-danger-soft:var(--red-50);
 --color-success:var(--forest-600);
 --hero-gradient:linear-gradient(140deg,var(--color-primary-strong) 0%,var(--color-primary) 100%);
+--color-primary-text:var(--color-primary);--color-link-text:var(--color-link);
 --avatar-gradient:linear-gradient(135deg,var(--color-primary) 0%,var(--color-primary-strong) 100%);
 }
 
@@ -53,25 +57,25 @@
 --color-primary:var(--forest-700);--color-primary-strong:var(--forest-900);--color-primary-soft:var(--forest-50);--color-primary-border:var(--forest-200);
 --color-cta:var(--forest-600);--color-cta-strong:var(--forest-700);
 --palette-light-page:var(--gray-50);--palette-light-fg:var(--gray-900);--palette-light-muted:var(--gray-500);--palette-light-border:var(--gray-200);
---palette-dark-page:#0A1A0F;--palette-dark-card:#0F2118;--palette-dark-fg:#F0FDF4;--palette-dark-muted:#86EFAC;--palette-dark-border:#1C3828;--palette-dark-accent-border:#14532D;
+--palette-dark-page:#0A1A0F;--palette-dark-text:#4ADE80;--palette-dark-soft:#10291A;--palette-dark-card:#0F2118;--palette-dark-fg:#F0FDF4;--palette-dark-muted:#86EFAC;--palette-dark-border:#1C3828;--palette-dark-accent-border:#14532D;
 }
 [data-palette="violet"]{
 --color-primary:var(--violet-600);--color-primary-strong:var(--violet-800);--color-primary-soft:var(--violet-100);--color-primary-border:var(--violet-200);
 --color-cta:var(--forest-600);--color-cta-strong:var(--forest-700);
 --palette-light-page:var(--slate-50);--palette-light-fg:var(--slate-900);--palette-light-muted:var(--slate-500);--palette-light-border:var(--slate-200);
---palette-dark-page:#0D0B18;--palette-dark-card:#1B1830;--palette-dark-fg:#F1F5F9;--palette-dark-muted:#94A3B8;--palette-dark-border:#2E2A45;--palette-dark-accent-border:#4C1D95;
+--palette-dark-page:#0D0B18;--palette-dark-text:#A78BFA;--palette-dark-soft:#2E2552;--palette-dark-card:#1B1830;--palette-dark-fg:#F1F5F9;--palette-dark-muted:#94A3B8;--palette-dark-border:#2E2A45;--palette-dark-accent-border:#4C1D95;
 }
 [data-palette="ocean"]{
 --color-primary:var(--ocean-700);--color-primary-strong:var(--ocean-800);--color-primary-soft:var(--ocean-50);--color-primary-border:var(--ocean-200);
 --color-cta:var(--ocean-700);--color-cta-strong:var(--ocean-800);
 --palette-light-page:var(--gray-50);--palette-light-fg:var(--gray-900);--palette-light-muted:var(--gray-500);--palette-light-border:var(--gray-200);
---palette-dark-page:#07131D;--palette-dark-card:#0C1F2E;--palette-dark-fg:#F0F9FF;--palette-dark-muted:#7DD3FC;--palette-dark-border:#17344A;--palette-dark-accent-border:#075985;
+--palette-dark-page:#07131D;--palette-dark-text:#38BDF8;--palette-dark-soft:#0C2A3F;--palette-dark-card:#0C1F2E;--palette-dark-fg:#F0F9FF;--palette-dark-muted:#7DD3FC;--palette-dark-border:#17344A;--palette-dark-accent-border:#075985;
 }
 [data-palette="terracotta"]{
 --color-primary:var(--terracotta-700);--color-primary-strong:var(--terracotta-800);--color-primary-soft:var(--terracotta-50);--color-primary-border:var(--terracotta-200);
 --color-cta:var(--terracotta-700);--color-cta-strong:var(--terracotta-800);
 --palette-light-page:#FFFBF7;--palette-light-fg:#1C1410;--palette-light-muted:#78716C;--palette-light-border:#EDE5DD;
---palette-dark-page:#1A0E08;--palette-dark-card:#26150C;--palette-dark-fg:#FFF7ED;--palette-dark-muted:#FDBA74;--palette-dark-border:#43261A;--palette-dark-accent-border:#9A3412;
+--palette-dark-page:#1A0E08;--palette-dark-text:#FB923C;--palette-dark-soft:#3A1D0F;--palette-dark-card:#26150C;--palette-dark-fg:#FFF7ED;--palette-dark-muted:#FDBA74;--palette-dark-border:#43261A;--palette-dark-accent-border:#9A3412;
 }
 
 /* Derived tokens must re-resolve wherever a palette/theme is set */
@@ -79,6 +83,7 @@
 --surface-page:var(--palette-light-page);--surface-card:var(--white);--surface-inset:var(--palette-light-page);--surface-nav:var(--color-primary-strong);
 --text-strong:var(--palette-light-fg);--text-muted:var(--palette-light-muted);--border-default:var(--palette-light-border);--border-accent:var(--color-primary-border);
 --hero-gradient:linear-gradient(140deg,var(--color-primary-strong) 0%,var(--color-primary) 100%);
+--color-primary-text:var(--color-primary);--color-link-text:var(--color-link);
 --avatar-gradient:linear-gradient(135deg,var(--color-primary) 0%,var(--color-primary-strong) 100%);
 }
 [data-theme="dark"]{
@@ -88,6 +93,7 @@
 --color-danger-soft:#2A0F0F;
 --shadow-1:0 1px 2px rgba(0,0,0,.5),0 2px 8px rgba(0,0,0,.35);
 --shadow-2:0 4px 12px rgba(0,0,0,.6),0 8px 32px rgba(0,0,0,.5);
+--color-primary-text:var(--palette-dark-text);--color-link-text:var(--ocean-300);--color-primary-soft:var(--palette-dark-soft);
 color-scheme:dark;
 }
 @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){
@@ -97,6 +103,7 @@ color-scheme:dark;
 --color-danger-soft:#2A0F0F;
 --shadow-1:0 1px 2px rgba(0,0,0,.5),0 2px 8px rgba(0,0,0,.35);
 --shadow-2:0 4px 12px rgba(0,0,0,.6),0 8px 32px rgba(0,0,0,.5);
+--color-primary-text:var(--palette-dark-text);--color-link-text:var(--ocean-300);--color-primary-soft:var(--palette-dark-soft);
 color-scheme:dark;
 }}
 :root{
