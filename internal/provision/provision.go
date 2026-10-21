@@ -23,6 +23,7 @@ var (
 	ErrInvalidRole    = errors.New("role must be owner or staff")
 	ErrInvalidStatus  = errors.New("status must be active or suspended")
 	ErrInvalidContent = errors.New("content too long")
+	ErrInvalidStyle   = errors.New("unknown layout style")
 	ErrUserExists     = errors.New("a user with that email already exists in this shop")
 )
 
@@ -173,6 +174,31 @@ func SetMallContent(ctx context.Context, st *store.Store, mallDomain, tagline, d
 		return ErrInvalidEmail
 	}
 	return st.SetMallContent(ctx, tenant.NormalizeDomain(mallDomain), tagline, description, contact)
+}
+
+// MallStyles and ShopStyles are the layouts migration 0006 allows.
+var (
+	MallStyles = []string{"classic", "editorial", "directory"}
+	ShopStyles = []string{"classic", "boutique", "market"}
+)
+
+func SetMallStyle(ctx context.Context, st *store.Store, mallDomain, style string) error {
+	if !slices.Contains(MallStyles, style) {
+		return ErrInvalidStyle
+	}
+	return st.SetMallStyle(ctx, tenant.NormalizeDomain(mallDomain), style)
+}
+
+func SetTenantStyle(ctx context.Context, st *store.Store, mallDomain, subdomain, style string) error {
+	if !slices.Contains(ShopStyles, style) {
+		return ErrInvalidStyle
+	}
+	domain := tenant.NormalizeDomain(mallDomain)
+	mall, err := st.MallByDomain(ctx, domain)
+	if err != nil {
+		return fmt.Errorf("mall %q: %w", domain, err)
+	}
+	return st.SetTenantStyle(ctx, mall.ID, tenant.Normalize(subdomain), style)
 }
 
 func SetupURL(scheme, port, mallDomain, subdomain, token string) string {

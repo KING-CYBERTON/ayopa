@@ -1,12 +1,12 @@
 {{define "product"}}
 {{template "shop_head" .}}
-<nav class="site-nav">
+{{if eq .Style "boutique"}}{{template "boutique_nav" .}}{{else}}<nav class="site-nav">
   <a href="/" class="brand">{{.Shop}}</a>
   <div class="nav-links">
     <a href="/">&#8592; All products</a>
     <a href="/admin/login" style="opacity:.45;font-size:.8rem;margin-left:.25rem">Admin</a>
   </div>
-</nav>
+</nav>{{end}}
 <main>
 <div class="product-detail">
   <div class="detail-breadcrumb">

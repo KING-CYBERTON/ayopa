@@ -40,6 +40,7 @@ type Mall struct {
 	Tagline      string
 	Description  string
 	ContactEmail string
+	Style        string // landing layout: classic, editorial or directory
 }
 
 type Tenant struct {
@@ -49,6 +50,7 @@ type Tenant struct {
 	Name      string
 	Status    string
 	Currency  string // default 'KES'; populated by TenantBySubdomain
+	Style     string // storefront layout: classic, boutique or market; populated by TenantBySubdomain
 }
 
 // TenantProfile extends Tenant with the operator-visible shop profile fields
@@ -143,12 +145,12 @@ func isUniqueViolation(err error) bool {
 
 // ---- malls ----
 
-const mallColumns = `id, domain, name, status, reserved, tagline, description, contact_email`
+const mallColumns = `id, domain, name, status, reserved, tagline, description, contact_email, style`
 
 func scanMall(row pgx.Row) (Mall, error) {
 	var m Mall
 	err := row.Scan(&m.ID, &m.Domain, &m.Name, &m.Status, &m.Reserved,
-		&m.Tagline, &m.Description, &m.ContactEmail)
+		&m.Tagline, &m.Description, &m.ContactEmail, &m.Style)
 	return m, err
 }
 
@@ -271,15 +273,26 @@ func (s *Store) SetMallContent(ctx context.Context, domain, tagline, description
 	return nil
 }
 
+func (s *Store) SetMallStyle(ctx context.Context, domain, style string) error {
+	tag, err := s.pool.Exec(ctx, `UPDATE malls SET style = $2 WHERE domain = $1`, domain, style)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 // ---- tenants (shops) ----
 
 func (s *Store) TenantBySubdomain(ctx context.Context, mallID int64, subdomain string) (Tenant, error) {
 	var t Tenant
 	err := s.pool.QueryRow(ctx,
-		`SELECT id, mall_id, subdomain, name, status, currency
+		`SELECT id, mall_id, subdomain, name, status, currency, style
 		   FROM tenants WHERE mall_id = $1 AND subdomain = $2`,
 		mallID, subdomain,
-	).Scan(&t.ID, &t.MallID, &t.Subdomain, &t.Name, &t.Status, &t.Currency)
+	).Scan(&t.ID, &t.MallID, &t.Subdomain, &t.Name, &t.Status, &t.Currency, &t.Style)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Tenant{}, ErrNotFound
 	}
@@ -384,6 +397,19 @@ func (s *Store) SetTenantStatus(ctx context.Context, mallID int64, subdomain, st
 	tag, err := s.pool.Exec(ctx,
 		`UPDATE tenants SET status = $3 WHERE mall_id = $1 AND subdomain = $2`,
 		mallID, subdomain, status)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (s *Store) SetTenantStyle(ctx context.Context, mallID int64, subdomain, style string) error {
+	tag, err := s.pool.Exec(ctx,
+		`UPDATE tenants SET style = $3 WHERE mall_id = $1 AND subdomain = $2`,
+		mallID, subdomain, style)
 	if err != nil {
 		return err
 	}

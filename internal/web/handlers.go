@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/KING-CYBERTON/ayopa/internal/auth"
@@ -23,9 +24,16 @@ type shopLink struct {
 	Host string
 }
 
+// shopGroup is one letter section of the directory landing layout.
+type shopGroup struct {
+	Letter string
+	Shops  []shopLink
+}
+
 type pageData struct {
 	Title    string
 	Page     string // template name, used by the admin nav to mark the current section
+	Style    string // layout of the current shop, or of the mall on mall pages
 	Error    string
 	Notice   string
 	MallName string
@@ -42,6 +50,9 @@ type pageData struct {
 	Description string
 	Contact     string
 	Shops       []shopLink
+	ShopGroups  []shopGroup // directory layout only
+	ShopTotal   int         // shops in the mall before the directory search
+	ShopQuery   string      // directory search text
 	Notes       []store.Note
 	Stats       store.DashboardStats
 
@@ -75,10 +86,16 @@ type pageData struct {
 }
 
 func (s *Server) page(r *http.Request, title string) pageData {
+	m, t := mallFrom(r.Context()), tenantFrom(r.Context())
+	style := m.Style
+	if t.ID != 0 {
+		style = t.Style
+	}
 	return pageData{
 		Title:    title,
-		MallName: mallFrom(r.Context()).Name,
-		Shop:     tenantFrom(r.Context()).Name,
+		Style:    style,
+		MallName: m.Name,
+		Shop:     t.Name,
 	}
 }
 
@@ -114,15 +131,47 @@ func (s *Server) showDirectory(w http.ResponseWriter, r *http.Request) {
 	page.Tagline = m.Tagline
 	page.Description = m.Description
 	page.Contact = m.ContactEmail
+	page.ShopTotal = len(shops)
+	if page.Style == "directory" {
+		page.ShopQuery = strings.TrimSpace(r.URL.Query().Get("q"))
+		if utf8.RuneCountInString(page.ShopQuery) > 80 {
+			page.ShopQuery = string([]rune(page.ShopQuery)[:80])
+		}
+		page.Noindex = page.ShopQuery != ""
+	}
+	needle := strings.ToLower(page.ShopQuery)
 	for _, t := range shops {
-		shopURL := s.shopURL(m, t.Subdomain, "/")
-		page.Shops = append(page.Shops, shopLink{
+		if needle != "" && !strings.Contains(strings.ToLower(t.Name), needle) &&
+			!strings.Contains(t.Subdomain, needle) {
+			continue
+		}
+		link := shopLink{
 			Name: t.Name,
-			URL:  shopURL,
+			URL:  s.shopURL(m, t.Subdomain, "/"),
 			Host: t.Subdomain + "." + m.Domain,
-		})
+		}
+		page.Shops = append(page.Shops, link)
+		if page.Style == "directory" {
+			page.ShopGroups = addToGroup(page.ShopGroups, link)
+		}
 	}
 	s.render(w, http.StatusOK, "landing", page)
+}
+
+// addToGroup files a shop under the first letter of its name. Shops arrive
+// sorted by name, so a new letter always starts a new group at the end.
+func addToGroup(groups []shopGroup, link shopLink) []shopGroup {
+	letter := "Other"
+	if r, _ := utf8.DecodeRuneInString(link.Name); unicode.IsLetter(r) {
+		letter = strings.ToUpper(string(r))
+	}
+	for i := range groups {
+		if groups[i].Letter == letter {
+			groups[i].Shops = append(groups[i].Shops, link)
+			return groups
+		}
+	}
+	return append(groups, shopGroup{Letter: letter, Shops: []shopLink{link}})
 }
 
 // ---- shop site ----

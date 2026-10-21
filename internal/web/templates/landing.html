@@ -1,10 +1,11 @@
 {{define "landing"}}<!doctype html>
-<html lang="en" data-palette="violet">
+<html lang="en" data-palette="violet" data-style="{{or .Style "classic"}}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+{{if .Noindex}}<meta name="robots" content="noindex,follow">{{end}}
 <title>{{.Title}}</title>
-{{template "fonts"}}
+{{template "fonts"}}{{if eq .Style "editorial"}}{{template "serif_font"}}{{end}}
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 {{template "tokens"}}
@@ -55,6 +56,43 @@ footer{border-top:1px solid var(--border-default);padding:1.5rem clamp(1rem,5vw,
 footer a{color:var(--text-muted)}
 footer a:hover{color:var(--color-primary-text)}
 
+/* Editorial layout */
+.ed-head{width:100%;max-width:80rem;margin:0 auto;padding:clamp(2.5rem,6vw,4.5rem) clamp(1rem,5vw,3rem) 2rem;border-bottom:1px solid var(--border-default)}
+.eyebrow{font-size:.7rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--color-primary-text)}
+.ed-head h1{font-family:var(--font-display);font-weight:var(--fw-display);letter-spacing:var(--ls-hero);font-size:clamp(2.5rem,6vw,4.75rem);line-height:1.02;margin:.75rem 0 1rem;max-width:14ch;text-wrap:balance}
+.ed-head p{font-family:var(--font-serif);font-style:italic;font-size:clamp(1.05rem,1.5vw+.3rem,1.35rem);color:var(--text-muted);max-width:46ch;white-space:pre-line}
+.ed-rule{display:flex;justify-content:space-between;align-items:baseline;border-top:2px solid var(--text-strong);padding-top:.75rem;margin-bottom:.5rem}
+.ed-rule h2{font-family:var(--font-display);font-weight:var(--fw-display);letter-spacing:var(--ls-heading);font-size:1.5rem}
+.ed-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,22rem),1fr));column-gap:2.5rem;list-style:none}
+.ed-list a{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;padding:.9rem 0;border-bottom:1px solid var(--border-default);color:var(--text-strong)}
+.ed-list a:hover .ed-name{text-decoration:underline;text-underline-offset:4px}
+.ed-name{font-family:var(--font-display);font-size:1.2rem}
+.ed-host{font-size:.75rem;color:var(--text-muted);font-family:var(--font-mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Directory layout */
+.dir-head{background:var(--hero-gradient);color:#fff;padding:clamp(2rem,5vw,3.5rem) clamp(1rem,5vw,3rem)}
+.dir-head .inner{max-width:80rem;margin:0 auto}
+.dir-head h1{font-weight:var(--fw-display);font-size:clamp(1.85rem,3.5vw,2.75rem);letter-spacing:-.03em;line-height:1.1;margin-bottom:.35rem}
+.dir-head p{opacity:.85;font-style:italic;margin-bottom:1.25rem}
+.dir-search{display:flex;gap:.25rem;max-width:36rem;background:var(--surface-card);border-radius:.5rem;padding:.25rem}
+.dir-search input{flex:1;min-width:0;border:none;background:transparent;font:inherit;font-size:1rem;padding:.6rem .75rem;color:var(--text-strong)}
+.dir-search input:focus{outline:none}
+.dir-search:focus-within{box-shadow:0 0 0 3px rgba(255,255,255,.45)}
+.dir-search button{border:none;border-radius:.375rem;background:var(--color-primary);color:var(--text-on-primary);font:inherit;font-weight:700;font-size:.875rem;padding:0 1.1rem;cursor:pointer}
+.dir-search button:hover{background:var(--color-primary-strong)}
+.dir-wrap{display:grid;gap:2rem;grid-template-columns:1fr}
+@media(min-width:48rem){.dir-wrap{grid-template-columns:10rem 1fr}}
+.dir-index{display:flex;flex-wrap:wrap;gap:.25rem;align-self:start;position:sticky;top:4.5rem}
+@media(min-width:48rem){.dir-index{flex-direction:column}}
+.dir-index a{display:flex;justify-content:space-between;gap:.5rem;padding:.4rem .7rem;border-radius:.375rem;color:var(--text-strong);font-size:.9rem}
+.dir-index a:hover{background:var(--color-primary-soft)}
+.dir-index .n{color:var(--text-muted);font-variant-numeric:tabular-nums}
+.dir-group{margin-bottom:2rem;scroll-margin-top:4.5rem}
+.dir-group h2{display:flex;align-items:baseline;gap:.6rem;font-size:1.15rem;font-weight:800;letter-spacing:-.02em;margin-bottom:.875rem}
+.dir-group h2 span{font-size:.8rem;font-weight:500;color:var(--text-muted)}
+.dir-group .shops-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,17rem),1fr));gap:.75rem}
+.empty a{display:inline-block;margin-top:1rem;font-weight:600}
+
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -63,6 +101,61 @@ footer a:hover{color:var(--color-primary-text)}
   <a href="/" class="brand"><em>{{.MallName}}</em></a>
   <a href="#shops" class="nav-cta">Browse shops</a>
 </nav>
+{{if eq .Style "editorial"}}
+<header class="ed-head">
+  <div class="eyebrow">{{.MallName}}{{if .Shops}} &middot; {{len .Shops}} {{if eq (len .Shops) 1}}shop{{else}}shops{{end}}{{end}}</div>
+  <h1>{{or .Tagline .MallName}}</h1>
+  {{if .Description}}<p>{{.Description}}</p>{{end}}
+</header>
+<main class="section" id="shops">
+  <div class="ed-rule"><h2>Every shop</h2></div>
+  {{if .Shops}}
+  <ul class="ed-list" role="list">
+    {{range .Shops}}<li><a href="{{.URL}}"><span class="ed-name">{{.Name}}</span><span class="ed-host">{{.Host}}</span></a></li>
+    {{end}}
+  </ul>
+  {{else}}
+  <div class="empty"><p>Opening soon &mdash; check back later.</p></div>
+  {{end}}
+</main>
+{{else if eq .Style "directory"}}
+<header class="dir-head">
+  <div class="inner">
+    <h1>Find a shop in {{.MallName}}</h1>
+    <p>{{.ShopTotal}} {{if eq .ShopTotal 1}}shop{{else}}shops{{end}}{{if .Tagline}} &middot; {{.Tagline}}{{end}}</p>
+    <form class="dir-search" method="get" action="/" role="search">
+      <input type="search" name="q" value="{{.ShopQuery}}" maxlength="80" placeholder="Search shops&#8230;" aria-label="Search shops" autocomplete="off">
+      <button type="submit">Search</button>
+    </form>
+  </div>
+</header>
+<main class="section" id="shops">
+  {{if .ShopGroups}}
+  <div class="dir-wrap">
+    <nav class="dir-index" aria-label="Jump to letter">
+      {{range .ShopGroups}}<a href="#letter-{{.Letter}}"><span>{{.Letter}}</span><span class="n">{{len .Shops}}</span></a>{{end}}
+    </nav>
+    <div>
+      {{range .ShopGroups}}
+      <section class="dir-group" id="letter-{{.Letter}}">
+        <h2>{{.Letter}} <span>{{len .Shops}}</span></h2>
+        <ul class="shops-grid" role="list">
+          {{range .Shops}}<li>{{template "shop_card" .}}</li>{{end}}
+        </ul>
+      </section>
+      {{end}}
+    </div>
+  </div>
+  {{else if .ShopQuery}}
+  <div class="empty">
+    <p>No shops match &ldquo;{{.ShopQuery}}&rdquo;.</p>
+    <a href="/">Clear search</a>
+  </div>
+  {{else}}
+  <div class="empty"><p>Opening soon &mdash; check back later.</p></div>
+  {{end}}
+</main>
+{{else}}
 <header class="hero">
   <h1>{{.MallName}}</h1>
   {{if .Tagline}}<p class="tagline">{{.Tagline}}</p>{{end}}
@@ -78,14 +171,7 @@ footer a:hover{color:var(--color-primary-text)}
   <ul class="shops-grid" role="list">
     {{range .Shops}}
     <li>
-      <a href="{{.URL}}" class="shop-card">
-        <div class="shop-initial">{{initial .Name}}</div>
-        <div class="shop-info-text">
-          <div class="shop-name">{{.Name}}</div>
-          <div class="shop-host">{{.Host}}</div>
-        </div>
-        <span class="shop-arrow" aria-hidden="true">&#8594;</span>
-      </a>
+      {{template "shop_card" .}}
     </li>
     {{end}}
   </ul>
@@ -95,6 +181,16 @@ footer a:hover{color:var(--color-primary-text)}
   </div>
   {{end}}
 </main>
+{{end}}
 {{if .Contact}}<footer><a href="mailto:{{.Contact}}">{{.Contact}}</a></footer>{{end}}
 </body>
 </html>{{end}}
+
+{{define "shop_card"}}<a href="{{.URL}}" class="shop-card">
+  <div class="shop-initial">{{initial .Name}}</div>
+  <div class="shop-info-text">
+    <div class="shop-name">{{.Name}}</div>
+    <div class="shop-host">{{.Host}}</div>
+  </div>
+  <span class="shop-arrow" aria-hidden="true">&#8594;</span>
+</a>{{end}}
