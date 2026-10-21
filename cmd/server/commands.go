@@ -49,6 +49,10 @@ func runAdmin(name string, args []string) int {
 		err = setMallStatus(ctx, st, args)
 	case "set-mall-content":
 		err = setMallContent(ctx, st, args)
+	case "set-mall-style":
+		err = setMallStyle(ctx, st, args)
+	case "set-shop-style":
+		err = setShopStyle(ctx, st, args)
 	case "list":
 		err = listAll(ctx, st)
 	default:
@@ -194,6 +198,42 @@ func setMallStatus(ctx context.Context, st *store.Store, args []string) error {
 		return err
 	}
 	fmt.Printf("%s is now %s.\n", tenant.NormalizeDomain(*mall), *status)
+	return nil
+}
+
+func setMallStyle(ctx context.Context, st *store.Store, args []string) error {
+	fs := newFlags("set-mall-style")
+	mall := fs.String("mall", "", "mall domain")
+	style := fs.String("style", "", strings.Join(provision.MallStyles, ", "))
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if err := require([2]string{"mall", *mall}, [2]string{"style", *style}); err != nil {
+		return err
+	}
+	if err := provision.SetMallStyle(ctx, st, *mall, *style); err != nil {
+		return err
+	}
+	fmt.Printf("%s now uses the %s layout.\n", tenant.NormalizeDomain(*mall), *style)
+	return nil
+}
+
+func setShopStyle(ctx context.Context, st *store.Store, args []string) error {
+	fs := newFlags("set-shop-style")
+	mall := fs.String("mall", "", "mall domain")
+	sub := fs.String("subdomain", "", "shop subdomain")
+	style := fs.String("style", "", strings.Join(provision.ShopStyles, ", "))
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if err := require([2]string{"mall", *mall}, [2]string{"subdomain", *sub},
+		[2]string{"style", *style}); err != nil {
+		return err
+	}
+	if err := provision.SetTenantStyle(ctx, st, *mall, *sub, *style); err != nil {
+		return err
+	}
+	fmt.Printf("%s.%s now uses the %s layout.\n", tenant.Normalize(*sub), tenant.NormalizeDomain(*mall), *style)
 	return nil
 }
 

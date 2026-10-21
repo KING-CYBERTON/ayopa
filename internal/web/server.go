@@ -22,6 +22,11 @@ import (
 //go:embed templates
 var templateFS embed.FS
 
+type productCard struct {
+	P        store.Product
+	Currency string
+}
+
 var templateFuncs = template.FuncMap{
 	"formatMoney": money.FormatCurrency,
 	"formatPrice": func(minor int64, currency string) string {
@@ -55,6 +60,19 @@ var templateFuncs = template.FuncMap{
 		q2 := q
 		q2.Sort = catalog.Sort(sortKey)
 		q2.Page = 1
+		qs := q2.QueryStringForPage(1)
+		if qs == "" {
+			return "/"
+		}
+		return "/?" + qs
+	},
+	// cardOf passes a product and the shop currency to a card partial.
+	"cardOf": func(p store.Product, currency string) productCard {
+		return productCard{P: p, Currency: currency}
+	},
+	"queryCat": func(q catalog.ListQuery, slug string) string {
+		q2 := q
+		q2.Category = slug
 		qs := q2.QueryStringForPage(1)
 		if qs == "" {
 			return "/"
