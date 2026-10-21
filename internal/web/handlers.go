@@ -43,6 +43,7 @@ type pageData struct {
 	Contact     string
 	Shops       []shopLink
 	Notes       []store.Note
+	Stats       store.DashboardStats
 
 	// storefront
 	Noindex      bool
@@ -416,10 +417,16 @@ func (s *Server) showDashboard(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, "list notes", err)
 		return
 	}
+	stats, err := s.store.DashboardStats(r.Context(), t.ID)
+	if err != nil {
+		s.serverError(w, "dashboard stats", err)
+		return
+	}
 	page := s.page(r, "Admin: "+t.Name)
 	page.UserEmail = u.Email
 	page.Role = u.Role
 	page.Notes = notes
+	page.Stats = stats
 	s.render(w, http.StatusOK, "dashboard", page)
 }
 

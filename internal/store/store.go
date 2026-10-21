@@ -109,6 +109,14 @@ type Invite struct {
 	Role  string
 }
 
+// DashboardStats are the counts shown on the admin dashboard.
+type DashboardStats struct {
+	Published  int
+	LowStock   int // published products with 1 to 5 in stock
+	OutOfStock int // published products with none in stock
+	Categories int
+}
+
 type Note struct {
 	ID        int64
 	Body      string
@@ -563,6 +571,20 @@ func (s *Store) ListNotes(ctx context.Context, tenantID int64, limit int) ([]Not
 		notes = append(notes, n)
 	}
 	return notes, rows.Err()
+}
+
+// DashboardStats counts one shop's published, low-stock and out-of-stock
+// products and its categories.
+func (s *Store) DashboardStats(ctx context.Context, tenantID int64) (DashboardStats, error) {
+	var d DashboardStats
+	err := s.pool.QueryRow(ctx,
+		`SELECT count(*) FILTER (WHERE status = 'published'),
+		        count(*) FILTER (WHERE status = 'published' AND stock BETWEEN 1 AND 5),
+		        count(*) FILTER (WHERE status = 'published' AND stock = 0),
+		        (SELECT count(*) FROM categories WHERE tenant_id = $1)
+		   FROM products WHERE tenant_id = $1`, tenantID,
+	).Scan(&d.Published, &d.LowStock, &d.OutOfStock, &d.Categories)
+	return d, err
 }
 
 // ---- categories ----
