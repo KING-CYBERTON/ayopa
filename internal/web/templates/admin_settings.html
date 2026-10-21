@@ -1,10 +1,10 @@
 {{define "admin_settings"}}{{template "head" .}}
 {{template "admin_bar" .}}
 <main class="admin-main">
-<div class="page-head"><h1>Shop settings</h1></div>
+<div class="page-head"><h2>Shop settings</h2></div>
 {{if .Error}}<p class="err" role="alert">{{.Error}}</p>{{end}}
 {{if .Notice}}<p class="ok" role="status">{{.Notice}}</p>{{end}}
-<form class="card narrow" method="post" action="/admin/settings">
+<form class="narrow" method="post" action="/admin/settings">
 <fieldset>
   <legend>Identity</legend>
   <label for="tagline">Tagline <small>(max 140 characters)</small></label>
@@ -38,7 +38,7 @@
     {{end}}
   </select>
 </fieldset>
-<div class="form-actions"><button class="btn" type="submit">Save settings</button></div>
+<button class="btn" type="submit">Save settings</button>
 </form>
 </main>
 {{template "foot" .}}{{end}}

@@ -2,12 +2,13 @@
 {{template "admin_bar" .}}
 <main class="admin-main">
 <div class="page-head">
-  <h1>Products</h1>
+  <h2>Products</h2>
   <a class="btn" href="/admin/products/new">+ New product</a>
 </div>
 {{if .Error}}<p class="err" role="alert">{{.Error}}</p>{{end}}
 {{if .Notice}}<p class="ok" role="status">{{.Notice}}</p>{{end}}
-<nav class="tabs" aria-label="Filter by status">
+<nav class="chips" aria-label="Filter by status">
+  <span class="eyebrow">Filter</span>
   <a href="/admin/products"{{if eq .AdminStatus ""}} aria-current="page"{{end}}>All</a>
   <a href="/admin/products?status=draft"{{if eq .AdminStatus "draft"}} aria-current="page"{{end}}>Draft</a>
   <a href="/admin/products?status=published"{{if eq .AdminStatus "published"}} aria-current="page"{{end}}>Published</a>
@@ -23,18 +24,18 @@
     <td><a class="cell-title" href="/admin/products/{{.ID}}">{{.Name}}</a>
       {{if .CategoryName}}<span class="cell-sub">{{.CategoryName}}</span>{{end}}</td>
     <td class="num">{{formatMoney .PriceMinor $.Currency}}</td>
-    <td class="num">{{.Stock}}</td>
+    <td class="num{{if eq .Stock 0}} stock-out{{else if le .Stock 5}} stock-low{{end}}">{{.Stock}}</td>
     <td><span class="badge badge-{{.Status}}">{{.Status}}</span></td>
     <td>
       <form method="post" action="/admin/products/{{.ID}}/featured" style="margin:0">
         <input type="hidden" name="featured" value="{{if .Featured}}0{{else}}1{{end}}">
-        <button type="submit" class="btn btn-ghost btn-icon{{if .Featured}} on{{end}}" aria-label="{{if .Featured}}Remove from featured{{else}}Mark as featured{{end}}" aria-pressed="{{if .Featured}}true{{else}}false{{end}}">{{if .Featured}}★{{else}}☆{{end}}</button>
+        <button type="submit" class="star{{if .Featured}} on{{end}}" aria-label="{{if .Featured}}Remove from featured{{else}}Mark as featured{{end}}" aria-pressed="{{if .Featured}}true{{else}}false{{end}}">{{if .Featured}}★{{else}}☆{{end}}</button>
       </form>
     </td>
     <td><div class="actions">
       <a class="btn btn-secondary btn-sm" href="/admin/products/{{.ID}}">Edit</a>
       {{if ne .Status "published"}}
-      <form method="post" action="/admin/products/{{.ID}}/status"><input type="hidden" name="status" value="published"><button type="submit" class="btn btn-sm">Publish</button></form>
+      <form method="post" action="/admin/products/{{.ID}}/status"><input type="hidden" name="status" value="published"><button type="submit" class="btn btn-ghost btn-sm">Publish</button></form>
       {{end}}
       {{if ne .Status "draft"}}
       <form method="post" action="/admin/products/{{.ID}}/status"><input type="hidden" name="status" value="draft"><button type="submit" class="btn btn-ghost btn-sm">Draft</button></form>

@@ -1,12 +1,11 @@
 {{define "admin_categories"}}{{template "head" .}}
 {{template "admin_bar" .}}
 <main class="admin-main">
-<div class="page-head"><h1>Categories</h1></div>
+<div class="page-head"><h2>Categories</h2></div>
 {{if .Error}}<p class="err" role="alert">{{.Error}}</p>{{end}}
 {{if .Notice}}<p class="ok" role="status">{{.Notice}}</p>{{end}}
-<form class="card inline-form" method="post" action="/admin/categories" style="margin-bottom:var(--space-6)">
-  <label for="name" class="muted" style="margin:0;white-space:nowrap">New category</label>
-  <input id="name" name="name" type="text" placeholder="e.g. Shoes" required maxlength="60">
+<form class="inline-form add-form" method="post" action="/admin/categories">
+  <input id="name" name="name" type="text" placeholder="New category name" aria-label="New category name" required maxlength="60">
   <button class="btn" type="submit">Add</button>
 </form>
 {{if .Categories}}
@@ -26,7 +25,7 @@
     <td class="num">{{.Count}}</td>
     <td><div class="actions">
       <details class="confirm">
-        <summary class="btn btn-ghost btn-sm">Delete…</summary>
+        <summary class="btn btn-danger btn-sm">Delete</summary>
         <div class="confirm-pop">
           <span>Delete “{{.Name}}”? Its products become uncategorised.</span>
           <form method="post" action="/admin/categories/{{.ID}}/delete"><button type="submit" class="btn btn-danger btn-sm">Delete category</button></form>
