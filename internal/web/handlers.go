@@ -25,6 +25,7 @@ type shopLink struct {
 
 type pageData struct {
 	Title    string
+	Page     string // template name, used by the admin nav to mark the current section
 	Error    string
 	Notice   string
 	MallName string
@@ -81,6 +82,7 @@ func (s *Server) page(r *http.Request, title string) pageData {
 }
 
 func (s *Server) render(w http.ResponseWriter, status int, name string, data pageData) {
+	data.Page = name
 	var buf bytes.Buffer
 	if err := s.tpl.ExecuteTemplate(&buf, name, data); err != nil {
 		s.log.Error("render", "template", name, "err", err)

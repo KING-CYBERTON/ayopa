@@ -1,63 +1,65 @@
 {{define "admin_products"}}{{template "head" .}}
-<h1>{{.Shop}}</h1>
-<p><small>Signed in as {{.UserEmail}} ({{.Role}}) &mdash; <a href="/admin">Dashboard</a></small></p>
-<nav>
-  <a href="/admin/products"><b>Products</b></a>
-  <a href="/admin/categories">Categories</a>
-  {{if eq .Role "owner"}}<a href="/admin/settings">Settings</a>{{end}}
-  <form method="post" action="/admin/logout" style="display:inline;margin:0"><button class="inline-btn" type="submit">Log out</button></form>
+{{template "admin_bar" .}}
+<main class="admin-main">
+<div class="page-head">
+  <h1>Products</h1>
+  <a class="btn" href="/admin/products/new">+ New product</a>
+</div>
+{{if .Error}}<p class="err" role="alert">{{.Error}}</p>{{end}}
+{{if .Notice}}<p class="ok" role="status">{{.Notice}}</p>{{end}}
+<nav class="tabs" aria-label="Filter by status">
+  <a href="/admin/products"{{if eq .AdminStatus ""}} aria-current="page"{{end}}>All</a>
+  <a href="/admin/products?status=draft"{{if eq .AdminStatus "draft"}} aria-current="page"{{end}}>Draft</a>
+  <a href="/admin/products?status=published"{{if eq .AdminStatus "published"}} aria-current="page"{{end}}>Published</a>
+  <a href="/admin/products?status=archived"{{if eq .AdminStatus "archived"}} aria-current="page"{{end}}>Archived</a>
 </nav>
-<h2>Products</h2>
-{{if .Error}}<p class="err">{{.Error}}</p>{{end}}
-{{if .Notice}}<p class="ok">{{.Notice}}</p>{{end}}
-<p style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;font-size:.9rem">
-  <a href="/admin/products/new" style="background:#1a5fa8;color:#fff;padding:.35rem .8rem;border-radius:.3rem;text-decoration:none">+ New product</a>
-  <span>Filter:
-    <a href="/admin/products"{{if eq .AdminStatus ""}} style="font-weight:700"{{end}}>All</a>
-    <a href="/admin/products?status=draft"{{if eq .AdminStatus "draft"}} style="font-weight:700"{{end}}>Draft</a>
-    <a href="/admin/products?status=published"{{if eq .AdminStatus "published"}} style="font-weight:700"{{end}}>Published</a>
-    <a href="/admin/products?status=archived"{{if eq .AdminStatus "archived"}} style="font-weight:700"{{end}}>Archived</a>
-  </span>
-</p>
 {{if .AdminProducts}}
+<div class="table-wrap">
 <table>
-  <thead><tr><th>Name</th><th>Price</th><th>Stock</th><th>Status</th><th>Featured</th><th>Actions</th></tr></thead>
+  <thead><tr><th>Name</th><th class="num">Price</th><th class="num">Stock</th><th>Status</th><th>Featured</th><th>Actions</th></tr></thead>
   <tbody>
   {{range .AdminProducts}}
   <tr>
-    <td><a href="/admin/products/{{.ID}}">{{.Name}}</a>
-      {{if .CategoryName}}<br><small>{{.CategoryName}}</small>{{end}}</td>
-    <td>{{formatMoney .PriceMinor $.Currency}}</td>
-    <td>{{.Stock}}</td>
+    <td><a class="cell-title" href="/admin/products/{{.ID}}">{{.Name}}</a>
+      {{if .CategoryName}}<span class="cell-sub">{{.CategoryName}}</span>{{end}}</td>
+    <td class="num">{{formatMoney .PriceMinor $.Currency}}</td>
+    <td class="num">{{.Stock}}</td>
     <td><span class="badge badge-{{.Status}}">{{.Status}}</span></td>
     <td>
       <form method="post" action="/admin/products/{{.ID}}/featured" style="margin:0">
         <input type="hidden" name="featured" value="{{if .Featured}}0{{else}}1{{end}}">
-        <button type="submit" class="inline-btn">{{if .Featured}}★{{else}}☆{{end}}</button>
+        <button type="submit" class="btn btn-ghost btn-icon{{if .Featured}} on{{end}}" aria-label="{{if .Featured}}Remove from featured{{else}}Mark as featured{{end}}" aria-pressed="{{if .Featured}}true{{else}}false{{end}}">{{if .Featured}}★{{else}}☆{{end}}</button>
       </form>
     </td>
-    <td class="actions">
-      <a href="/admin/products/{{.ID}}">Edit</a>
+    <td><div class="actions">
+      <a class="btn btn-secondary btn-sm" href="/admin/products/{{.ID}}">Edit</a>
       {{if ne .Status "published"}}
-      <form method="post" action="/admin/products/{{.ID}}/status"><input type="hidden" name="status" value="published"><button type="submit" class="inline-btn">Publish</button></form>
+      <form method="post" action="/admin/products/{{.ID}}/status"><input type="hidden" name="status" value="published"><button type="submit" class="btn btn-sm">Publish</button></form>
       {{end}}
       {{if ne .Status "draft"}}
-      <form method="post" action="/admin/products/{{.ID}}/status"><input type="hidden" name="status" value="draft"><button type="submit" class="inline-btn">Draft</button></form>
+      <form method="post" action="/admin/products/{{.ID}}/status"><input type="hidden" name="status" value="draft"><button type="submit" class="btn btn-ghost btn-sm">Draft</button></form>
       {{end}}
       {{if ne .Status "archived"}}
-      <form method="post" action="/admin/products/{{.ID}}/status"><input type="hidden" name="status" value="archived"><button type="submit" class="inline-btn">Archive</button></form>
+      <form method="post" action="/admin/products/{{.ID}}/status"><input type="hidden" name="status" value="archived"><button type="submit" class="btn btn-ghost btn-sm">Archive</button></form>
       {{end}}
-    </td>
+    </div></td>
   </tr>
   {{end}}
   </tbody>
 </table>
+</div>
 {{if gt .AdminLastPage 1}}
-<p style="font-size:.875rem">
-  {{if gt .AdminPage 1}}<a href="/admin/products?{{adminPageQS .AdminStatus (sub .AdminPage 1)}}">‹ Prev</a> &nbsp;{{end}}
-  Page {{.AdminPage}} of {{.AdminLastPage}}
-  {{if lt .AdminPage .AdminLastPage}}&nbsp; <a href="/admin/products?{{adminPageQS .AdminStatus (add .AdminPage 1)}}">Next ›</a>{{end}}
-</p>
+<div class="pager">
+  <span>{{if gt .AdminPage 1}}<a class="btn btn-secondary btn-sm" href="/admin/products?{{adminPageQS .AdminStatus (sub .AdminPage 1)}}">‹ Prev</a>{{end}}</span>
+  <span>Page {{.AdminPage}} of {{.AdminLastPage}}</span>
+  <span>{{if lt .AdminPage .AdminLastPage}}<a class="btn btn-secondary btn-sm" href="/admin/products?{{adminPageQS .AdminStatus (add .AdminPage 1)}}">Next ›</a>{{end}}</span>
+</div>
 {{end}}
-{{else}}<p><small>No products{{if .AdminStatus}} with status "{{.AdminStatus}}"{{end}}.</small></p>{{end}}
+{{else}}
+<div class="card empty">
+  <p>No products{{if .AdminStatus}} with status "{{.AdminStatus}}"{{end}}.</p>
+  {{if not .AdminStatus}}<a class="btn" href="/admin/products/new">Add your first product</a>{{end}}
+</div>
+{{end}}
+</main>
 {{template "foot" .}}{{end}}
