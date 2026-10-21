@@ -1,5 +1,5 @@
 {{define "shop_head"}}<!doctype html>
-<html lang="en" data-palette="forest" data-style="{{or .Style "classic"}}">
+<html lang="en" data-palette="{{or .Palette "forest"}}" data-style="{{or .Style "classic"}}"{{if eq .Theme "light" "dark"}} data-theme="{{.Theme}}"{{end}}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">

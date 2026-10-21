@@ -41,6 +41,10 @@ type Mall struct {
 	Description  string
 	ContactEmail string
 	Style        string // landing layout: classic, editorial or directory
+	Palette      string
+	// LockedStyles and LockedPalettes are kept off the shops' Appearance page.
+	LockedStyles   []string
+	LockedPalettes []string
 }
 
 type Tenant struct {
@@ -51,6 +55,8 @@ type Tenant struct {
 	Status    string
 	Currency  string // default 'KES'; populated by TenantBySubdomain
 	Style     string // storefront layout: classic, boutique or market; populated by TenantBySubdomain
+	Palette   string // populated by TenantBySubdomain
+	Theme     string // auto, light or dark; populated by TenantBySubdomain
 }
 
 // TenantProfile extends Tenant with the operator-visible shop profile fields
@@ -137,12 +143,13 @@ func isUniqueViolation(err error) bool {
 
 // ---- malls ----
 
-const mallColumns = `id, domain, name, status, reserved, tagline, description, contact_email, style`
+const mallColumns = `id, domain, name, status, reserved, tagline, description, contact_email, style, palette, locked_styles, locked_palettes`
 
 func scanMall(row pgx.Row) (Mall, error) {
 	var m Mall
 	err := row.Scan(&m.ID, &m.Domain, &m.Name, &m.Status, &m.Reserved,
-		&m.Tagline, &m.Description, &m.ContactEmail, &m.Style)
+		&m.Tagline, &m.Description, &m.ContactEmail, &m.Style,
+		&m.Palette, &m.LockedStyles, &m.LockedPalettes)
 	return m, err
 }
 
@@ -265,8 +272,22 @@ func (s *Store) SetMallContent(ctx context.Context, domain, tagline, description
 	return nil
 }
 
-func (s *Store) SetMallStyle(ctx context.Context, domain, style string) error {
-	tag, err := s.pool.Exec(ctx, `UPDATE malls SET style = $2 WHERE domain = $1`, domain, style)
+func (s *Store) SetMallLook(ctx context.Context, domain, style, palette string) error {
+	tag, err := s.pool.Exec(ctx,
+		`UPDATE malls SET style = $2, palette = $3 WHERE domain = $1`, domain, style, palette)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (s *Store) SetMallLocks(ctx context.Context, domain string, styles, palettes []string) error {
+	tag, err := s.pool.Exec(ctx,
+		`UPDATE malls SET locked_styles = $2, locked_palettes = $3 WHERE domain = $1`,
+		domain, styles, palettes)
 	if err != nil {
 		return err
 	}
@@ -281,10 +302,11 @@ func (s *Store) SetMallStyle(ctx context.Context, domain, style string) error {
 func (s *Store) TenantBySubdomain(ctx context.Context, mallID int64, subdomain string) (Tenant, error) {
 	var t Tenant
 	err := s.pool.QueryRow(ctx,
-		`SELECT id, mall_id, subdomain, name, status, currency, style
+		`SELECT id, mall_id, subdomain, name, status, currency, style, palette, theme
 		   FROM tenants WHERE mall_id = $1 AND subdomain = $2`,
 		mallID, subdomain,
-	).Scan(&t.ID, &t.MallID, &t.Subdomain, &t.Name, &t.Status, &t.Currency, &t.Style)
+	).Scan(&t.ID, &t.MallID, &t.Subdomain, &t.Name, &t.Status, &t.Currency,
+		&t.Style, &t.Palette, &t.Theme)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Tenant{}, ErrNotFound
 	}
@@ -402,6 +424,20 @@ func (s *Store) SetTenantStyle(ctx context.Context, mallID int64, subdomain, sty
 	tag, err := s.pool.Exec(ctx,
 		`UPDATE tenants SET style = $3 WHERE mall_id = $1 AND subdomain = $2`,
 		mallID, subdomain, style)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// SetTenantAppearance saves the choices from the shop's Appearance page.
+func (s *Store) SetTenantAppearance(ctx context.Context, tenantID int64, style, palette, theme string) error {
+	tag, err := s.pool.Exec(ctx,
+		`UPDATE tenants SET style = $2, palette = $3, theme = $4 WHERE id = $1`,
+		tenantID, style, palette, theme)
 	if err != nil {
 		return err
 	}
