@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/KING-CYBERTON/ayopa/internal/provision"
+	"github.com/KING-CYBERTON/ayopa/internal/seed"
 	"github.com/KING-CYBERTON/ayopa/internal/store"
 	"github.com/KING-CYBERTON/ayopa/internal/tenant"
 	"github.com/KING-CYBERTON/ayopa/internal/web"
@@ -57,6 +58,8 @@ func runAdmin(name string, args []string) int {
 		err = setShopStyle(ctx, st, args)
 	case "list":
 		err = listAll(ctx, st)
+	case "seed":
+		err = runSeed(ctx, st, cfg, dbURL, args)
 	default:
 		err = fmt.Errorf("unknown command %q", name)
 	}
@@ -346,6 +349,29 @@ func listAll(ctx context.Context, st *store.Store) error {
 		for _, t := range shops {
 			fmt.Printf("  %s.%s  %q  [%s]\n", t.Subdomain, m.Domain, t.Name, t.Status)
 		}
+	}
+	return nil
+}
+
+func runSeed(ctx context.Context, st *store.Store, cfg web.Config, dbURL string, args []string) error {
+	fs := newFlags("seed")
+	mall := fs.String("mall", seed.DefaultMall, "mall domain to rebuild; must end in .localhost or .test")
+	password := fs.String("password", seed.DefaultPassword, "password for every seeded account")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if err := seed.CheckDatabaseURL(dbURL); err != nil {
+		return err
+	}
+	res, err := seed.Run(ctx, st, *mall, *password, cfg.Scheme, cfg.Port)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Rebuilt %s with %d shops. Landing page: %s://%s%s\n\n",
+		res.Mall.Domain, res.Shops, cfg.Scheme, res.Mall.Domain, cfg.Port)
+	fmt.Printf("Every account uses the password %q.\n\n", *password)
+	for _, l := range res.Logins {
+		fmt.Printf("  %-6s %-24s %s\n", l.Role, l.Email, l.URL)
 	}
 	return nil
 }
