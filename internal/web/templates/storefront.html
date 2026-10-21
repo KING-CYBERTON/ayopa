@@ -5,7 +5,6 @@
   <a href="/" class="brand">{{.Shop}}</a>
   <div class="nav-links">
     {{range .Categories}}<a href="/?cat={{.Slug}}">{{.Name}}</a>{{end}}
-    {{if .HasBlog}}<a href="/blog">Blog</a>{{end}}
     <a href="/admin/login" style="opacity:.45;font-size:.8rem;margin-left:.25rem">Admin</a>
   </div>
 </nav>
