@@ -163,6 +163,14 @@ details.confirm[open] .confirm-pop{display:flex}
 .swatches span{width:1.6rem;height:1.6rem;border-radius:50%;border:1px solid var(--border-default)}
 .mode-sample{height:2.25rem;border-radius:.4rem;border:1px solid var(--border-default);display:flex;overflow:hidden}
 .mode-sample span{flex:1;background:var(--surface-page);display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;color:var(--color-primary-text)}
+/* Blog editor */
+.post-editor{display:grid;gap:1.25rem;grid-template-columns:1fr;align-items:start}
+@media(min-width:56rem){.post-editor{grid-template-columns:minmax(0,1fr) 16rem}.post-editor aside{position:sticky;top:1rem}}
+.post-editor aside{display:flex;flex-direction:column;gap:1rem}
+.post-editor .title-input{font-size:1.1rem;font-weight:700}
+.post-editor .body-input{font-family:var(--font-mono);font-size:.85rem;line-height:1.65}
+.status-row{display:flex;justify-content:space-between;align-items:center;font-size:.875rem;margin-bottom:.25rem}
+.btn-block{display:block;width:100%;margin-top:.6rem}
 </style>
 </head>
 <body>
@@ -180,6 +188,7 @@ details.confirm[open] .confirm-pop{display:flex}
     <nav class="admin-nav" aria-label="Admin">
       <a href="/admin"{{if eq .Page "dashboard"}} aria-current="page"{{end}}>Dashboard</a>
       <a href="/admin/products"{{if eq .Page "admin_products" "admin_product_form"}} aria-current="page"{{end}}>Products</a>
+      <a href="/admin/blog"{{if eq .Page "admin_blog" "admin_post_form"}} aria-current="page"{{end}}>Blog</a>
       <a href="/admin/categories"{{if eq .Page "admin_categories"}} aria-current="page"{{end}}>Categories</a>
       {{if eq .Role "owner"}}<a href="/admin/settings"{{if eq .Page "admin_settings"}} aria-current="page"{{end}}>Settings</a>
       <a href="/admin/appearance"{{if eq .Page "admin_appearance"}} aria-current="page"{{end}}>Appearance</a>{{end}}
