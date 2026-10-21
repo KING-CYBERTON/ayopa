@@ -53,8 +53,9 @@ func (s *Server) securityHeaders(next http.Handler) http.Handler {
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("X-Frame-Options", "DENY")
 		h.Set("Referrer-Policy", "same-origin")
+		// Fonts come from Google Fonts (Figtree, per the Ayopa design system).
 		h.Set("Content-Security-Policy",
-			"default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'")
+			"default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; base-uri 'none'; frame-ancestors 'none'")
 		if s.cfg.CookieSecure {
 			h.Set("Strict-Transport-Security", "max-age=31536000")
 		}

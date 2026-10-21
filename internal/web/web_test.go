@@ -712,7 +712,7 @@ func TestLandingCSPHeader(t *testing.T) {
 	rec := e.do(http.MethodGet, "mall1.test", "/", nil)
 	wantStatus(t, rec, http.StatusOK)
 	got := rec.Header().Get("Content-Security-Policy")
-	want := "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'"
+	want := "default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; base-uri 'none'; frame-ancestors 'none'"
 	if got != want {
 		t.Errorf("CSP = %q, want %q", got, want)
 	}

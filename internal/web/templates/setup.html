@@ -1,11 +1,11 @@
 {{define "setup"}}{{template "head" .}}
 <main class="auth">
+<div class="auth-box">
 <div class="card">
-<p class="eyebrow">{{.Shop}}</p>
-<h1>Set up your shop</h1>
+<h1>Set up {{.Shop}}</h1>
 {{if .Error}}<p class="err" role="alert">{{.Error}}</p>{{end}}
 {{if .Token}}
-<p class="muted">Choose a password for <b>{{.Email}}</b>.</p>
+<p style="margin-top:var(--space-2);font-size:.9rem">Choose a password for <b>{{.Email}}</b>.</p>
 <form method="post" action="/admin/setup">
 <input type="hidden" name="token" value="{{.Token}}">
 <label for="password">Password</label>
@@ -16,6 +16,7 @@
 <button class="btn" type="submit">Save and continue</button>
 </form>
 {{end}}
+</div>
 </div>
 </main>
 {{template "foot" .}}{{end}}

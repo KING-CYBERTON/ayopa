@@ -1,8 +1,8 @@
 {{define "login"}}{{template "head" .}}
 <main class="auth">
+<div class="auth-box">
 <div class="card">
-<p class="eyebrow">{{.Shop}}</p>
-<h1>Log in</h1>
+<h1>Log in to {{.Shop}}</h1>
 {{if .Error}}<p class="err" role="alert">{{.Error}}</p>{{end}}
 <form method="post" action="/admin/login">
 <label for="email">Email</label>
@@ -11,6 +11,7 @@
 <input id="password" name="password" type="password" required autocomplete="current-password">
 <button class="btn" type="submit">Log in</button>
 </form>
+</div>
 </div>
 </main>
 {{template "foot" .}}{{end}}

@@ -1,17 +1,16 @@
 {{define "admin_product_form"}}{{template "head" .}}
 {{template "admin_bar" .}}
 <main class="admin-main">
-<p style="margin-bottom:var(--space-2)"><a href="/admin/products" class="muted">← Products</a></p>
 <div class="page-head">
   <div>
-    <h1>{{if .IsEdit}}Edit product{{else}}New product{{end}}</h1>
-    {{if .IsEdit}}<p><span class="badge badge-{{.FormProduct.Status}}">{{.FormProduct.Status}}</span></p>{{end}}
+    <h2>{{if .IsEdit}}Edit product{{else}}New product{{end}}</h2>
+    {{if .IsEdit}}<p style="margin-top:var(--space-2);font-size:var(--fs-sm)">Status: <span class="badge badge-{{.FormProduct.Status}}">{{.FormProduct.Status}}</span></p>{{end}}
   </div>
   {{if .IsEdit}}
   <div class="actions">
-    {{if ne .FormProduct.Status "published"}}<form method="post" action="/admin/products/{{.FormProduct.ID}}/status"><input type="hidden" name="status" value="published"><button type="submit" class="btn btn-sm">Publish</button></form>{{end}}
-    {{if ne .FormProduct.Status "draft"}}<form method="post" action="/admin/products/{{.FormProduct.ID}}/status"><input type="hidden" name="status" value="draft"><button type="submit" class="btn btn-secondary btn-sm">Set draft</button></form>{{end}}
-    {{if ne .FormProduct.Status "archived"}}<form method="post" action="/admin/products/{{.FormProduct.ID}}/status"><input type="hidden" name="status" value="archived"><button type="submit" class="btn btn-secondary btn-sm">Archive</button></form>{{end}}
+    {{if ne .FormProduct.Status "published"}}<form method="post" action="/admin/products/{{.FormProduct.ID}}/status"><input type="hidden" name="status" value="published"><button type="submit" class="btn btn-ghost btn-sm">Publish</button></form>{{end}}
+    {{if ne .FormProduct.Status "draft"}}<form method="post" action="/admin/products/{{.FormProduct.ID}}/status"><input type="hidden" name="status" value="draft"><button type="submit" class="btn btn-ghost btn-sm">Set draft</button></form>{{end}}
+    {{if ne .FormProduct.Status "archived"}}<form method="post" action="/admin/products/{{.FormProduct.ID}}/status"><input type="hidden" name="status" value="archived"><button type="submit" class="btn btn-ghost btn-sm">Archive</button></form>{{end}}
   </div>
   {{end}}
 </div>
@@ -42,7 +41,7 @@
 
 <div class="form-actions">
   <button class="btn" type="submit">{{if .IsEdit}}Save changes{{else}}Create product{{end}}</button>
-  <a class="btn btn-ghost" href="/admin/products">Cancel</a>
+  <a class="back" href="/admin/products">← Back to products</a>
 </div>
 </form>
 </main>
