@@ -256,6 +256,19 @@ func (s *Store) CreateMall(ctx context.Context, domain, name string, reserved []
 	return m, nil
 }
 
+// DeleteMall removes a mall and, through ON DELETE CASCADE, every shop,
+// user, product and post in it. Only the dev seed calls it.
+func (s *Store) DeleteMall(ctx context.Context, domain string) error {
+	tag, err := s.pool.Exec(ctx, `DELETE FROM malls WHERE domain = $1`, domain)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 func (s *Store) SetMallStatus(ctx context.Context, domain, status string) error {
 	tag, err := s.pool.Exec(ctx, `UPDATE malls SET status = $2 WHERE domain = $1`, domain, status)
 	if err != nil {

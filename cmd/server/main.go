@@ -34,6 +34,7 @@ const usage = `usage: server [command] [flags]
   set-mall-locks      -mall D [-styles boutique,market] [-palettes P,...]
   set-shop-style      -mall D -subdomain S -style classic|boutique|market
   list                show malls and shops
+  seed                [-mall ayopa.localhost] [-password P]   rebuild a local mall of sample shops
 `
 
 func main() {
@@ -52,7 +53,7 @@ func main() {
 		os.Exit(runMigrate(logger))
 	case "create-mall", "create-tenant", "create-invite",
 		"set-tenant-status", "set-mall-status", "set-mall-content",
-		"set-mall-style", "set-mall-locks", "set-shop-style", "list":
+		"set-mall-style", "set-mall-locks", "set-shop-style", "list", "seed":
 		os.Exit(runAdmin(cmd, args))
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command %q\n\n%s", cmd, usage)

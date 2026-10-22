@@ -202,6 +202,23 @@ Open `http://localhost:8080`, sign up, and you are redirected to
 `http://<name>.localhost:8080/login`. Browsers resolve `*.localhost` to your own
 machine. Use a separate `ayopa_dev` database for manual work, never `ayopa_test`.
 
+### Sample shops
+
+```bash
+go run ./cmd/server seed
+```
+
+This builds a mall at `http://ayopa.localhost:8080` with four shops (Nyumba,
+Sokoni, Kahawa and Mtindo) covering every shop layout and palette, light, dark
+and auto modes, KES, UGX and TZS prices, featured, low-stock, sold-out, draft
+and archived products, and blog posts that link products. It prints a login
+for each shop; all accounts use the password `ayopa-dev-password` (change it
+with `-password`).
+
+Each run deletes and rebuilds that mall, so anything you changed in it is lost.
+It refuses to run unless `DATABASE_URL` points at localhost and the mall domain
+(`-mall`) ends in `.localhost` or `.test`. Never point it at production.
+
 ### Migration workflow (development)
 
 `server migrate` is the only thing production uses. For local development and
