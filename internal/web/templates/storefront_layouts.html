@@ -1,0 +1,104 @@
+{{define "boutique_nav"}}<nav class="b-nav">
+  <div class="b-links"><a href="/#shop">Shop</a>{{if .HasBlog}}<a href="/blog">Journal</a>{{end}}</div>
+  <a href="/" class="b-brand">{{.Shop}}</a>
+  <div class="b-links b-right">{{if .Contact}}<a href="mailto:{{.Contact}}">Contact</a>{{end}}<a href="/admin/login" class="b-admin">Admin</a></div>
+</nav>{{end}}
+
+{{define "boutique_home"}}{{template "boutique_nav" .}}
+<main>
+<header class="b-hero">
+  <div class="b-hero-text">
+    <span class="b-eyebrow">{{.MallName}}</span>
+    <h1>{{.Shop}}</h1>
+    {{if .Tagline}}<p class="b-tagline">{{.Tagline}}</p>{{end}}
+    <a href="#shop" class="b-cta">Shop the collection &#8594;</a>
+  </div>
+  {{with .Featured}}{{with index . 0}}<a href="/shop/{{.ID}}" class="b-hero-media" style="background:{{placeholderColor .ID}}" aria-label="{{.Name}}">{{initial .Name}}</a>{{end}}
+  {{else}}<div class="b-hero-media b-hero-plain" aria-hidden="true">{{initial .Shop}}</div>{{end}}
+</header>
+<section id="shop" class="b-shop">
+  <nav class="b-cats" aria-label="Categories">
+    <a href="{{queryCat .Query ""}}#shop"{{if not .Query.Category}} class="on"{{end}}>All</a>
+    {{range .Categories}}<a href="{{queryCat $.Query .Slug}}#shop"{{if eq $.Query.Category .Slug}} class="on"{{end}}>{{.Name}}</a>{{end}}
+  </nav>
+  {{if .Products}}
+  <div class="b-grid">
+    {{range .Products}}
+    <a href="/shop/{{.ID}}" class="b-tile">
+      <div class="b-thumb"><div style="background:{{placeholderColor .ID}}">{{initial .Name}}</div></div>
+      <div class="b-meta"><span class="b-name">{{.Name}}</span><span class="b-price">{{formatMoney .PriceMinor $.Currency}}</span></div>
+      {{if eq .Stock 0}}<span class="b-sold">Sold out</span>{{end}}
+    </a>
+    {{end}}
+  </div>
+  {{template "pager" .}}
+  {{else}}
+  <div class="empty-state">
+    <p>Nothing here yet{{if .Query.IsFiltered}} in this category{{end}}.</p>
+    {{if .Query.IsFiltered}}<a href="/">See everything</a>{{end}}
+  </div>
+  {{end}}
+</section>
+</main>
+<footer class="b-footer">
+  <span>{{if .Address}}{{.Address}}{{end}}{{if and .Address .OpeningHours}} &middot; {{end}}{{.OpeningHours}}{{if .Phone}}{{if or .Address .OpeningHours}} &middot; {{end}}{{.Phone}}{{end}}</span>
+  <span>{{.Shop}} &mdash; part of {{.MallName}}</span>
+</footer>{{end}}
+
+{{define "market_home"}}<nav class="site-nav">
+  <a href="/" class="brand">{{.Shop}}</a>
+  <div class="nav-links">{{if .HasBlog}}<a href="/blog">Blog</a>{{end}}<a href="/admin/login" style="opacity:.45;font-size:.8rem">Admin</a></div>
+</nav>
+<div class="m-bar">
+  <form class="m-search" method="get" action="/" role="search">
+    {{if .Query.Category}}<input type="hidden" name="cat" value="{{.Query.Category}}">{{end}}
+    <input type="search" name="q" value="{{.Query.Q}}" maxlength="80" placeholder="Search {{.Shop}}&#8230;" aria-label="Search products" autocomplete="off">
+    <button type="submit">Search</button>
+  </form>
+  <nav class="m-chips" aria-label="Categories">
+    <a href="{{queryCat .Query ""}}"{{if not .Query.Category}} class="on"{{end}}>All</a>
+    {{range .Categories}}<a href="{{queryCat $.Query .Slug}}"{{if eq $.Query.Category .Slug}} class="on"{{end}}>{{.Name}}{{if .Count}} <span>{{.Count}}</span>{{end}}</a>{{end}}
+  </nav>
+</div>
+<main class="m-main">
+  {{if and .Featured (not .Query.IsFiltered)}}
+  <section>
+    <h2 class="m-eyebrow">Popular</h2>
+    <div class="m-grid">{{range .Featured}}{{template "market_card" (cardOf . $.Currency)}}{{end}}</div>
+  </section>
+  {{end}}
+  <section>
+    <div class="m-head">
+      <h2 class="m-eyebrow">{{if .Query.Q}}Results for &ldquo;{{.Query.Q}}&rdquo;{{else}}All products{{end}} &middot; {{.Total}}</h2>
+      <div class="sort-bar">
+        <span>Sort</span>
+        <a href="{{querySort .Query "newest"}}"{{if eq .Query.Sort "newest"}} class="active"{{end}}>Newest</a>
+        <a href="{{querySort .Query "price_asc"}}"{{if eq .Query.Sort "price_asc"}} class="active"{{end}}>Price &#8593;</a>
+        <a href="{{querySort .Query "price_desc"}}"{{if eq .Query.Sort "price_desc"}} class="active"{{end}}>Price &#8595;</a>
+        <a href="{{querySort .Query "name_asc"}}"{{if eq .Query.Sort "name_asc"}} class="active"{{end}}>A&#8211;Z</a>
+      </div>
+    </div>
+    {{if .Products}}
+    <div class="m-grid">{{range .Products}}{{template "market_card" (cardOf . $.Currency)}}{{end}}</div>
+    {{template "pager" .}}
+    {{else}}
+    <div class="empty-state">
+      <p>No products found{{if .Query.IsFiltered}} matching your search{{end}}.</p>
+      {{if .Query.IsFiltered}}<a href="/">Clear search</a>{{end}}
+    </div>
+    {{end}}
+  </section>
+</main>
+{{template "shop_footer" .}}{{end}}
+
+{{define "market_card"}}<div class="product-card">
+  <a href="/shop/{{.P.ID}}">
+    <div class="pcard-thumb" style="background:{{placeholderColor .P.ID}}">{{initial .P.Name}}{{if .P.Featured}}<span class="m-badge">Popular</span>{{end}}</div>
+    <div class="pcard-body">
+      <div class="pcard-name">{{.P.Name}}</div>
+      <div class="pcard-price">{{formatMoney .P.PriceMinor .Currency}}</div>
+      {{if eq .P.Stock 0}}<div class="pcard-nostock">Out of stock</div>
+      {{else if le .P.Stock 5}}<div class="pcard-stock">Only {{.P.Stock}} left</div>{{end}}
+    </div>
+  </a>
+</div>{{end}}

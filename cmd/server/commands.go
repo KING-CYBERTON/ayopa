@@ -49,6 +49,12 @@ func runAdmin(name string, args []string) int {
 		err = setMallStatus(ctx, st, args)
 	case "set-mall-content":
 		err = setMallContent(ctx, st, args)
+	case "set-mall-style":
+		err = setMallStyle(ctx, st, args)
+	case "set-mall-locks":
+		err = setMallLocks(ctx, st, args)
+	case "set-shop-style":
+		err = setShopStyle(ctx, st, args)
 	case "list":
 		err = listAll(ctx, st)
 	default:
@@ -194,6 +200,89 @@ func setMallStatus(ctx context.Context, st *store.Store, args []string) error {
 		return err
 	}
 	fmt.Printf("%s is now %s.\n", tenant.NormalizeDomain(*mall), *status)
+	return nil
+}
+
+func setMallStyle(ctx context.Context, st *store.Store, args []string) error {
+	fs := newFlags("set-mall-style")
+	mall := fs.String("mall", "", "mall domain")
+	style := fs.String("style", "", "landing layout: "+strings.Join(provision.MallStyles, ", "))
+	palette := fs.String("palette", "", "landing palette: "+strings.Join(provision.Palettes, ", "))
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if err := require([2]string{"mall", *mall}); err != nil {
+		return err
+	}
+	if *style == "" && *palette == "" {
+		return errors.New("-style or -palette is required")
+	}
+	if err := provision.SetMallLook(ctx, st, *mall, *style, *palette); err != nil {
+		return err
+	}
+	fmt.Printf("Landing page look updated for %s.\n", tenant.NormalizeDomain(*mall))
+	return nil
+}
+
+func setMallLocks(ctx context.Context, st *store.Store, args []string) error {
+	fs := newFlags("set-mall-locks")
+	mall := fs.String("mall", "", "mall domain")
+	styles := fs.String("styles", "", "comma-separated shop layouts to reserve (boutique, market); empty clears")
+	palettes := fs.String("palettes", "", "comma-separated palettes to reserve; empty clears")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if err := require([2]string{"mall", *mall}); err != nil {
+		return err
+	}
+	domain := tenant.NormalizeDomain(*mall)
+	m, err := st.MallByDomain(ctx, domain)
+	if err != nil {
+		return fmt.Errorf("mall %q: %w", domain, err)
+	}
+	newStyles, newPalettes := m.LockedStyles, m.LockedPalettes
+	fs.Visit(func(f *flag.Flag) {
+		switch f.Name {
+		case "styles":
+			newStyles = splitList(*styles)
+		case "palettes":
+			newPalettes = splitList(*palettes)
+		}
+	})
+	if err := provision.SetMallLocks(ctx, st, domain, newStyles, newPalettes); err != nil {
+		return err
+	}
+	fmt.Printf("Reserved for %s: layouts [%s], palettes [%s].\n", domain,
+		strings.Join(newStyles, ", "), strings.Join(newPalettes, ", "))
+	return nil
+}
+
+func splitList(s string) []string {
+	out := []string{}
+	for _, v := range strings.Split(s, ",") {
+		if v = strings.TrimSpace(v); v != "" {
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
+func setShopStyle(ctx context.Context, st *store.Store, args []string) error {
+	fs := newFlags("set-shop-style")
+	mall := fs.String("mall", "", "mall domain")
+	sub := fs.String("subdomain", "", "shop subdomain")
+	style := fs.String("style", "", strings.Join(provision.ShopStyles, ", "))
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if err := require([2]string{"mall", *mall}, [2]string{"subdomain", *sub},
+		[2]string{"style", *style}); err != nil {
+		return err
+	}
+	if err := provision.SetTenantStyle(ctx, st, *mall, *sub, *style); err != nil {
+		return err
+	}
+	fmt.Printf("%s.%s now uses the %s layout.\n", tenant.Normalize(*sub), tenant.NormalizeDomain(*mall), *style)
 	return nil
 }
 

@@ -1,9 +1,11 @@
 {{define "storefront"}}
 {{template "shop_head" .}}
+{{if eq .Style "boutique"}}{{template "boutique_home" .}}{{else if eq .Style "market"}}{{template "market_home" .}}{{else}}
 <nav class="site-nav">
   <a href="/" class="brand">{{.Shop}}</a>
   <div class="nav-links">
     {{range .Categories}}<a href="/?cat={{.Slug}}">{{.Name}}</a>{{end}}
+    {{if .HasBlog}}<a href="/blog">Blog</a>{{end}}
     <a href="/admin/login" style="opacity:.45;font-size:.8rem;margin-left:.25rem">Admin</a>
   </div>
 </nav>
@@ -78,18 +80,7 @@
       </div>
       {{end}}
     </div>
-    {{if gt .LastPage 1}}
-    <nav class="pagination" aria-label="Pages">
-      {{if gt .Query.Page 1}}<a href="{{queryPage .Query (sub .Query.Page 1)}}">&#8249; Prev</a>{{end}}
-      {{range paginate .Query.Page .LastPage}}
-        {{if eq . 0}}<span class="dots">&#8230;</span>
-        {{else if eq . $.Query.Page}}<span class="cur">{{.}}</span>
-        {{else}}<a href="{{queryPage $.Query .}}">{{.}}</a>{{end}}
-      {{end}}
-      {{if lt .Query.Page .LastPage}}<a href="{{queryPage .Query (add .Query.Page 1)}}">Next &#8250;</a>{{end}}
-    </nav>
-    <p class="pager-info">{{.Total}} products</p>
-    {{end}}
+    {{template "pager" .}}
     {{else}}
     <div class="empty-state">
       <p>No products found{{if .Query.IsFiltered}} matching your filters{{end}}.</p>
@@ -98,7 +89,26 @@
     {{end}}
   </section>
 </div>
-{{if or .Contact .Phone .Address .OpeningHours}}
+{{template "shop_footer" .}}
+{{end}}
+</body>
+</html>
+{{end}}
+
+{{define "pager"}}{{if gt .LastPage 1}}
+<nav class="pagination" aria-label="Pages">
+  {{if gt .Query.Page 1}}<a href="{{queryPage .Query (sub .Query.Page 1)}}">&#8249; Prev</a>{{end}}
+  {{range paginate .Query.Page .LastPage}}
+    {{if eq . 0}}<span class="dots">&#8230;</span>
+    {{else if eq . $.Query.Page}}<span class="cur">{{.}}</span>
+    {{else}}<a href="{{queryPage $.Query .}}">{{.}}</a>{{end}}
+  {{end}}
+  {{if lt .Query.Page .LastPage}}<a href="{{queryPage .Query (add .Query.Page 1)}}">Next &#8250;</a>{{end}}
+</nav>
+<p class="pager-info">{{.Total}} products</p>
+{{end}}{{end}}
+
+{{define "shop_footer"}}{{if or .Contact .Phone .Address .OpeningHours}}
 <div class="shop-info">
   {{if .Contact}}<span><strong>Email:</strong> <a href="mailto:{{.Contact}}">{{.Contact}}</a></span>{{end}}
   {{if .Phone}}<span><strong>Phone:</strong> {{.Phone}}</span>{{end}}
@@ -106,7 +116,4 @@
   {{if .OpeningHours}}<span><strong>Hours:</strong> {{.OpeningHours}}</span>{{end}}
 </div>
 {{end}}
-<footer class="site-footer">{{.Shop}} &mdash; part of <a href="/">{{.MallName}}</a></footer>
-</body>
-</html>
-{{end}}
+<footer class="site-footer">{{.Shop}} &mdash; part of <a href="/">{{.MallName}}</a></footer>{{end}}

@@ -1078,3 +1078,275 @@ func TestAdminStatusChangeIsTenantBound(t *testing.T) {
 	}
 	_ = bobCookie
 }
+
+func TestDashboardStats(t *testing.T) {
+	e := newEnv(t, testConfig())
+	e.mall("mall1.test")
+	cookie := e.setup("mall1.test", "alice", "owner@example.com")
+	host := "alice.mall1.test"
+	ctx := context.Background()
+	m, _ := e.st.MallByDomain(ctx, "mall1.test")
+	alice, _ := e.st.TenantBySubdomain(ctx, m.ID, "alice")
+
+	if _, err := e.st.CreateCategory(ctx, alice.ID, "Shoes"); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range []struct {
+		name    string
+		stock   int
+		publish bool
+	}{{"Plenty", 50, true}, {"Few", 3, true}, {"None", 0, true}, {"Hidden", 2, false}} {
+		prod, err := e.st.CreateProduct(ctx, alice.ID, p.name, "", 100, p.stock, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if p.publish {
+			if err := e.st.SetProductStatus(ctx, alice.ID, prod.ID, store.ProductPublished); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+
+	got, err := e.st.DashboardStats(ctx, alice.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := store.DashboardStats{Published: 3, LowStock: 1, OutOfStock: 1, Categories: 1}
+	if got != want {
+		t.Errorf("stats = %+v, want %+v", got, want)
+	}
+
+	rec := e.do(http.MethodGet, host, "/admin", nil, cookie)
+	wantStatus(t, rec, http.StatusOK)
+	if !strings.Contains(rec.Body.String(), `<span class="stat-n">3</span><span class="stat-l">Published products</span>`) {
+		t.Error("dashboard does not show the published count")
+	}
+}
+
+func TestShopAppearance(t *testing.T) {
+	e := newEnv(t, testConfig())
+	e.mall("mall1.test")
+	owner := e.setup("mall1.test", "alice", "owner@example.com")
+	host := "alice.mall1.test"
+	ctx := context.Background()
+
+	rec := e.do(http.MethodGet, host, "/admin/appearance", nil, owner)
+	wantStatus(t, rec, http.StatusOK)
+	if body := rec.Body.String(); !strings.Contains(body, `value="classic" checked`) || !strings.Contains(body, `value="forest" checked`) {
+		t.Error("appearance page should show the classic forest defaults")
+	}
+	wantStatus(t, e.do(http.MethodGet, host, "/admin/appearance", nil), http.StatusSeeOther)
+
+	look := func(style, palette, theme string) url.Values {
+		return url.Values{"style": {style}, "palette": {palette}, "theme": {theme}}
+	}
+	wantStatus(t, e.do(http.MethodPost, host, "/admin/appearance", look("boutique", "ocean", "dark")), http.StatusUnauthorized)
+	wantStatus(t, e.do(http.MethodPost, host, "/admin/appearance", look("gallery", "ocean", "dark"), owner), http.StatusBadRequest)
+	wantStatus(t, e.do(http.MethodPost, host, "/admin/appearance", look("boutique", "ocean", "dark"), owner), http.StatusSeeOther)
+	body := e.do(http.MethodGet, host, "/", nil).Body.String()
+	if !strings.Contains(body, `data-palette="ocean" data-style="boutique" data-theme="dark"`) {
+		t.Error("storefront should use the saved appearance")
+	}
+
+	// Locks block new choices but keep the shop's current ones.
+	if err := provision.SetMallLocks(ctx, e.st, "mall1.test", []string{"boutique", "market"}, []string{"ocean", "violet"}); err != nil {
+		t.Fatal(err)
+	}
+	wantStatus(t, e.do(http.MethodPost, host, "/admin/appearance", look("market", "ocean", "auto"), owner), http.StatusBadRequest)
+	wantStatus(t, e.do(http.MethodPost, host, "/admin/appearance", look("boutique", "violet", "auto"), owner), http.StatusBadRequest)
+	wantStatus(t, e.do(http.MethodPost, host, "/admin/appearance", look("boutique", "ocean", "light"), owner), http.StatusSeeOther)
+	page := e.do(http.MethodGet, host, "/admin/appearance", nil, owner).Body.String()
+	if !strings.Contains(page, `value="market" disabled`) || strings.Contains(page, `value="boutique" checked disabled`) {
+		t.Error("only locked options the shop doesn't use should be disabled")
+	}
+	body = e.do(http.MethodGet, host, "/", nil).Body.String()
+	if !strings.Contains(body, `data-palette="ocean" data-style="boutique" data-theme="light"`) {
+		t.Error("the shop should keep its locked layout and palette and switch to light mode")
+	}
+}
+
+func TestMallLocksRules(t *testing.T) {
+	e := newEnv(t, testConfig())
+	e.mall("mall1.test")
+	ctx := context.Background()
+	if err := provision.SetMallLocks(ctx, e.st, "mall1.test", []string{"classic"}, nil); !errors.Is(err, provision.ErrInvalidStyle) {
+		t.Errorf("locking classic: got %v", err)
+	}
+	if err := provision.SetMallLocks(ctx, e.st, "mall1.test", nil, provision.Palettes); !errors.Is(err, provision.ErrAllPalettesLocked) {
+		t.Errorf("locking every palette: got %v", err)
+	}
+	if err := provision.SetMallLocks(ctx, e.st, "mall1.test", nil, nil); err != nil {
+		t.Errorf("clearing locks: %v", err)
+	}
+	if err := provision.SetMallLook(ctx, e.st, "mall1.test", "", "ocean"); err != nil {
+		t.Fatal(err)
+	}
+	body := e.do(http.MethodGet, "mall1.test", "/", nil).Body.String()
+	if !strings.Contains(body, `data-palette="ocean" data-style="classic"`) {
+		t.Error("mall landing should use its palette and keep its layout")
+	}
+}
+
+func TestShopBlog(t *testing.T) {
+	e := newEnv(t, testConfig())
+	e.mall("mall1.test")
+	owner := e.setup("mall1.test", "alice", "owner@example.com")
+	e.setup("mall1.test", "bob", "bob@example.com")
+	host := "alice.mall1.test"
+	ctx := context.Background()
+	m, _ := e.st.MallByDomain(ctx, "mall1.test")
+	alice, _ := e.st.TenantBySubdomain(ctx, m.ID, "alice")
+	basket := e.createProduct(ctx, t, alice.ID, "Kiondo Basket", "woven", 250000, 3)
+	e.publishProduct(ctx, t, alice.ID, basket.ID)
+
+	if strings.Contains(e.do(http.MethodGet, host, "/", nil).Body.String(), `href="/blog"`) {
+		t.Error("storefront should not link to an empty blog")
+	}
+	wantStatus(t, e.do(http.MethodPost, host, "/admin/blog/new", url.Values{"title": {"x"}}), http.StatusUnauthorized)
+	wantStatus(t, e.do(http.MethodPost, host, "/admin/blog/new", url.Values{"title": {""}}, owner), http.StatusBadRequest)
+
+	body := fmt.Sprintf("Three days per basket.\n\n## Why it takes time\n\nSee /shop/%d and <b>this</b>.", basket.ID)
+	rec := e.do(http.MethodPost, host, "/admin/blog/new", url.Values{
+		"title": {"How a kiondo is made"}, "excerpt": {"From sisal to basket."},
+		"body": {body}, "category": {"Behind the craft"}, "action": {"draft"},
+	}, owner)
+	wantStatus(t, rec, http.StatusSeeOther)
+	loc := rec.Header().Get("Location")
+	if !strings.HasSuffix(loc, "?saved=draft") {
+		t.Fatalf("draft redirect = %q", loc)
+	}
+	path := strings.TrimSuffix(loc, "?saved=draft")
+	id := strings.TrimPrefix(path, "/admin/blog/")
+
+	wantStatus(t, e.do(http.MethodGet, host, "/blog/"+id, nil), http.StatusNotFound)
+	wantStatus(t, e.do(http.MethodGet, "bob.mall1.test", "/blog/"+id, nil), http.StatusNotFound)
+
+	rec = e.do(http.MethodPost, host, path, url.Values{
+		"title": {"How a kiondo is made"}, "excerpt": {"From sisal to basket."},
+		"body": {body}, "category": {"Behind the craft"}, "action": {"publish"},
+	}, owner)
+	wantStatus(t, rec, http.StatusSeeOther)
+
+	rec = e.do(http.MethodGet, host, "/blog/"+id, nil)
+	wantStatus(t, rec, http.StatusOK)
+	page := rec.Body.String()
+	for _, want := range []string{"<h2>Why it takes time</h2>", "&lt;b&gt;this&lt;/b&gt;", "Mentioned in this post", "Kiondo Basket", "Behind the craft"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("post page missing %q", want)
+		}
+	}
+	if !strings.Contains(e.do(http.MethodGet, host, "/blog", nil).Body.String(), "How a kiondo is made") {
+		t.Error("blog index missing the published post")
+	}
+	if !strings.Contains(e.do(http.MethodGet, host, "/", nil).Body.String(), `href="/blog"`) {
+		t.Error("storefront should link to the blog once a post is published")
+	}
+	if strings.Contains(e.do(http.MethodGet, "bob.mall1.test", "/blog", nil).Body.String(), "kiondo") {
+		t.Error("another shop's blog leaked the post")
+	}
+
+	wantStatus(t, e.do(http.MethodPost, "bob.mall1.test", path+"/delete", nil, e.login("bob.mall1.test", "bob@example.com")), http.StatusNotFound)
+	wantStatus(t, e.do(http.MethodPost, host, path+"/delete", nil, owner), http.StatusSeeOther)
+	wantStatus(t, e.do(http.MethodGet, host, "/blog/"+id, nil), http.StatusNotFound)
+}
+
+func TestMallLayouts(t *testing.T) {
+	e := newEnv(t, testConfig())
+	e.mall("mall1.test")
+	ctx := context.Background()
+	for _, s := range [][2]string{{"alpha", "Alpha Books"}, {"bravo", "Bravo Shoes"}, {"beta", "Beta Tea"}} {
+		if _, _, err := provision.CreateTenant(ctx, e.st, "mall1.test", s[0], s[1], s[0]+"@example.com", time.Hour); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	body := e.do(http.MethodGet, "mall1.test", "/", nil).Body.String()
+	if !strings.Contains(body, `data-style="classic"`) {
+		t.Error("new mall should use the classic layout")
+	}
+
+	if err := provision.SetMallLook(ctx, e.st, "mall1.test", "gallery", ""); !errors.Is(err, provision.ErrInvalidStyle) {
+		t.Errorf("unknown style: got %v, want ErrInvalidStyle", err)
+	}
+
+	if err := provision.SetMallLook(ctx, e.st, "mall1.test", "editorial", ""); err != nil {
+		t.Fatal(err)
+	}
+	body = e.do(http.MethodGet, "mall1.test", "/", nil).Body.String()
+	for _, want := range []string{`data-style="editorial"`, "Every shop", "family=Newsreader", "Bravo Shoes"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("editorial landing missing %q", want)
+		}
+	}
+
+	if err := provision.SetMallLook(ctx, e.st, "mall1.test", "directory", ""); err != nil {
+		t.Fatal(err)
+	}
+	body = e.do(http.MethodGet, "mall1.test", "/", nil).Body.String()
+	for _, want := range []string{`id="letter-A"`, `id="letter-B"`, "Find a shop in", "3 shops"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("directory landing missing %q", want)
+		}
+	}
+	if strings.Contains(body, "family=Newsreader") {
+		t.Error("directory landing should not load the serif font")
+	}
+
+	body = e.do(http.MethodGet, "mall1.test", "/?q=BRAVO", nil).Body.String()
+	if !strings.Contains(body, "Bravo Shoes") || strings.Contains(body, "Beta Tea") || strings.Contains(body, "Alpha Books") {
+		t.Error("directory search should keep only matching shops")
+	}
+	if !strings.Contains(body, "noindex") {
+		t.Error("directory search results should be noindex")
+	}
+
+	body = e.do(http.MethodGet, "mall1.test", "/?q=%3Cscript%3E", nil).Body.String()
+	if !strings.Contains(body, "No shops match &ldquo;&lt;script&gt;&rdquo;") {
+		t.Error("empty directory search should echo the escaped query")
+	}
+}
+
+func TestShopLayouts(t *testing.T) {
+	e := newEnv(t, testConfig())
+	e.mall("mall1.test")
+	e.setup("mall1.test", "alice", "owner@example.com")
+	ctx := context.Background()
+	m, _ := e.st.MallByDomain(ctx, "mall1.test")
+	alice, _ := e.st.TenantBySubdomain(ctx, m.ID, "alice")
+	p := e.createProduct(ctx, t, alice.ID, "Kiondo Basket", "woven", 250000, 3)
+	e.publishProduct(ctx, t, alice.ID, p.ID)
+
+	if err := provision.SetTenantStyle(ctx, e.st, "mall1.test", "alice", "editorial"); !errors.Is(err, provision.ErrInvalidStyle) {
+		t.Errorf("mall-only style on a shop: got %v, want ErrInvalidStyle", err)
+	}
+
+	cases := []struct {
+		style string
+		want  []string
+	}{
+		{"classic", []string{`data-style="classic"`, `class="filter-form"`}},
+		{"boutique", []string{`data-style="boutique"`, `class="b-hero"`, `class="b-tile"`, "family=Newsreader"}},
+		{"market", []string{`data-style="market"`, `class="m-search"`, `class="m-grid"`}},
+	}
+	for _, c := range cases {
+		if err := provision.SetTenantStyle(ctx, e.st, "mall1.test", "alice", c.style); err != nil {
+			t.Fatal(err)
+		}
+		rec := e.do(http.MethodGet, "alice.mall1.test", "/", nil)
+		wantStatus(t, rec, http.StatusOK)
+		body := rec.Body.String()
+		for _, w := range c.want {
+			if !strings.Contains(body, w) {
+				t.Errorf("%s storefront missing %q", c.style, w)
+			}
+		}
+		if !strings.Contains(body, "Kiondo Basket") {
+			t.Errorf("%s storefront missing the product", c.style)
+		}
+		rec = e.do(http.MethodGet, "alice.mall1.test", fmt.Sprintf("/shop/%d", p.ID), nil)
+		wantStatus(t, rec, http.StatusOK)
+		if !strings.Contains(rec.Body.String(), `data-style="`+c.style+`"`) {
+			t.Errorf("%s product page missing its layout style", c.style)
+		}
+	}
+}

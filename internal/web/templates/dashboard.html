@@ -1,6 +1,12 @@
 {{define "dashboard"}}{{template "head" .}}
 {{template "admin_bar" .}}
 <main class="admin-main">
+<div class="stats">
+  <a class="card stat" href="/admin/products?status=published"><span class="stat-n">{{.Stats.Published}}</span><span class="stat-l">Published products</span></a>
+  <a class="card stat" href="/admin/products"><span class="stat-n">{{.Stats.LowStock}}</span><span class="stat-l">Low stock (≤ 5)</span></a>
+  <a class="card stat{{if .Stats.OutOfStock}} stat-warn{{end}}" href="/admin/products"><span class="stat-n">{{.Stats.OutOfStock}}</span><span class="stat-l">Out of stock</span></a>
+  <a class="card stat" href="/admin/categories"><span class="stat-n">{{.Stats.Categories}}</span><span class="stat-l">Categories</span></a>
+</div>
 <div class="page-head">
   <h2>Notes</h2>
   <a class="btn" href="/admin/products/new">+ New product</a>
